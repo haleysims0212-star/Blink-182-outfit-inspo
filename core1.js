@@ -22,7 +22,14 @@ let projects=loadProjects(), currentId=null, filter='all', idx=0, viewMode='swip
 const current=()=>projects.find(p=>p.id===currentId);
 function persist(){localStorage.setItem(KEY,JSON.stringify(projects))}
 function escapeHTML(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function sourceName(url,publisher=''){if(publisher)return publisher.replace(/\s*\|.*$/,'').trim();if(!url)return'Inspo';try{const h=new URL(url).hostname.toLowerCase();if(h.includes('amazon')||h==='a.co')return'Amazon';if(h.includes('vinted'))return'Vinted';if(h.includes('poshmark'))return'Poshmark';if(h.includes('pinterest'))return'Pinterest';if(h.includes('etsy'))return'Etsy';if(h.includes('target'))return'Target';return h.replace(/^www\./,'').split('.')[0]}catch{return'Inspo'}}
+function sourceName(url,publisher=''){
+  let host='';try{host=new URL(url).hostname.toLowerCase()}catch{}
+  const p=String(publisher||'').toLowerCase();
+  const has=s=>host.includes(s)||p.includes(s);
+  if(has('vinted'))return'Vinted';if(has('amazon')||host==='a.co')return'Amazon';if(has('poshmark'))return'Poshmark';if(has('pinterest'))return'Pinterest';if(has('etsy'))return'Etsy';if(has('target'))return'Target';if(has('walmart'))return'Walmart';if(has('ebay'))return'eBay';if(has('depop'))return'Depop';
+  if(publisher)return publisher.replace(/\s*\|.*$/,'').replace(/^www\./i,'').trim();
+  if(!host)return'Inspo';return host.replace(/^www\./,'').split('.')[0].replace(/^./,c=>c.toUpperCase())
+}
 function renderHome(){
   $('#homeView').hidden=false; $('#boardView').hidden=true; const wrap=$('#projects'); wrap.innerHTML='';
   $('#emptyHome').hidden=projects.length!==0;
