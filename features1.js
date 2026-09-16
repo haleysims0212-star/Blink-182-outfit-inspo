@@ -1,17 +1,36 @@
 function renderCompare(){
   const grid=$('#compareGrid');if(!grid)return;grid.innerHTML='';if(filter!=='saved')return;const b=current(),a=(b.items||[]).filter(x=>(b.saved||[]).includes(x.id));
   if(!a.length){grid.innerHTML='<div class="compare-empty">Save a few finds first, then compare them here.</div>';return}
-  a.forEach(x=>{const c=document.createElement('article');c.className='compare-card';const img=x.image?`<img src="${escapeHTML(x.image)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:'Visual unavailable';const reviews=x.reviews||x.rating||'—';c.innerHTML=`<div class="compare-img">${img}</div><div class="compare-body"><div class="compare-src">${escapeHTML(x.source||'Inspo')}</div><div class="compare-title">${escapeHTML(x.title||'Untitled find')}</div>${compareRow('Price',x.price)}${compareRow('Size',x.size)}${compareRow('Reviews',reviews)}${compareRow('Condition',x.condition)}${x.url?`<a class="compare-open" href="${escapeHTML(x.url)}" target="_blank" rel="noopener">Open source</a>`:''}</div>`;grid.appendChild(c)})
+  a.forEach(x=>{
+    const c=document.createElement('article');c.className='cmp-card';
+    const img=x.image?`<img src="${escapeHTML(x.image)}" alt="${escapeHTML(x.title||'')}" referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('missing');this.remove()">`:'<div class="cmp-noimg">Visual unavailable</div>';
+    const reviews=x.reviews||x.rating||'—';
+    c.innerHTML=`<div class="cmp-media">${img}</div><div class="cmp-info"><div class="cmp-store">${escapeHTML(x.source||'Inspo')}</div><div class="cmp-name">${escapeHTML(x.title||'Untitled find')}</div>${compareRow('Price',x.price)}${compareRow('Size',x.size)}${compareRow('Reviews',reviews)}${compareRow('Condition',x.condition)}${x.url?`<a class="cmp-open" href="${escapeHTML(x.url)}" target="_blank" rel="noopener">Open source</a>`:''}</div>`;
+    grid.appendChild(c)
+  })
 }
-function compareRow(label,value){return `<div class="compare-row"><span>${label}</span><b>${escapeHTML(value||'—')}</b></div>`}
+function compareRow(label,value){return `<div class="cmp-row"><span>${label}</span><b>${escapeHTML(value||'—')}</b></div>`}
 function parseDetails(text=''){
   const s=String(text).replace(/\s+/g,' ').trim(),out={};let m=s.match(/\$\s?\d+(?:[.,]\d{2})?/);if(m)out.price=m[0].replace(/\s+/g,'');
   m=s.match(/\b(XXXL|XXL|XL|L|M|S|XS|XXS)\s*\/\s*US\s*(\d{1,2}(?:\s*[-–]\s*\d{1,2})?)/i);if(m)out.size=m[1].toUpperCase()+' / US '+m[2].replace(/\s+/g,'');else{m=s.match(/\bSize\s*[:\-]?\s*(XXXL|XXL|XL|L|M|S|XS|XXS|\d{1,2}(?:\s*[-–]\s*\d{1,2})?)/i);if(m)out.size=m[1].toUpperCase()}
   const star=s.match(/([0-5](?:\.\d)?)\s*(?:out of 5|stars?|★)/i),rev=s.match(/([\d,]+)\s*(?:ratings?|reviews?)/i);if(star||rev)out.reviews=[star?star[1]+' ★':'',rev?rev[1]+' reviews':''].filter(Boolean).join(' · ');
   m=s.match(/\b(new with tags|new without tags|very good|good|satisfactory|used|new)\b/i);if(m)out.condition=m[1].replace(/\b\w/g,c=>c.toUpperCase());return out
 }
+function isAmazonUrl(url=''){try{const h=new URL(url).hostname.toLowerCase();return h==='a.co'||h.includes('amazon.')}catch{return false}}
+function amazonReviews(rating='',count=''){
+  const r=String(rating||'').match(/([0-5](?:\.\d)?)/),c=String(count||'').match(/([\d,]+)/);return [r?r[1]+' ★':'',c?c[1]+' reviews':''].filter(Boolean).join(' · ')
+}
 async function previewDetails(url){
-  const endpoint='https://api.microlink.io/?url='+encodeURIComponent(url)+'&prerender=true&data.text.attr=text',r=await fetch(endpoint);if(!r.ok)throw new Error('details');const j=await r.json(),d=j.data||{},text=typeof d.text==='string'?d.text:(d.text?.value||''),det=parseDetails([d.title,d.description,text].filter(Boolean).join(' '));return{title:d.title||'',image:d.image?.url||'',source:d.publisher||'',price:det.price||'',size:det.size||'',reviews:det.reviews||'',condition:det.condition||''}
+  const q=new URLSearchParams();q.set('url',url);q.set('prerender','true');q.set('data.pageText.selector','body');q.set('data.pageText.attr','text');
+  if(isAmazonUrl(url)){
+    q.set('data.amazonRating.selector','#acrPopover');q.set('data.amazonRating.attr','title');
+    q.set('data.amazonReviewCount.selector','#acrCustomerReviewText');q.set('data.amazonReviewCount.attr','aria-label');
+    q.set('data.amazonPrice.selector','.a-price .a-offscreen');q.set('data.amazonPrice.attr','text');
+    q.set('data.amazonSize.selector','#variation_size_name .selection');q.set('data.amazonSize.attr','text')
+  }
+  const r=await fetch('https://api.microlink.io/?'+q.toString());if(!r.ok)throw new Error('details');const j=await r.json(),d=j.data||{},text=typeof d.pageText==='string'?d.pageText:(d.pageText?.value||''),det=parseDetails([d.title,d.description,text].filter(Boolean).join(' '));
+  const amazonReview=amazonReviews(d.amazonRating,d.amazonReviewCount);
+  return{title:d.title||'',image:d.image?.url||'',source:d.publisher||'',price:d.amazonPrice||det.price||'',size:d.amazonSize||det.size||'',reviews:amazonReview||det.reviews||'',condition:det.condition||''}
 }
 async function enrichItem(x,force=false){
   if(!x?.url)return false;const hasDetails=!!(x.price||x.size||x.reviews||x.condition),fresh=x.detailsChecked&&Date.now()-x.detailsChecked<21600000;if(!force&&hasDetails&&fresh)return false;
