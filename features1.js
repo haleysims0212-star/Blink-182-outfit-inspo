@@ -3,9 +3,10 @@ function renderCompare(){
   if(!a.length){grid.innerHTML='<div class="compare-empty">Save a few finds first, then compare them here.</div>';return}
   a.forEach(x=>{
     const c=document.createElement('article');c.className='cmp-card';
-    const img=x.image?`<img src="${escapeHTML(x.image)}" alt="${escapeHTML(x.title||'')}" referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('missing');this.remove()">`:'<div class="cmp-noimg">Visual unavailable</div>';
+    const imageUrl=safeImageUrl(x.image),sourceUrl=safeHttpUrl(x.url);
+    const img=imageUrl?`<img src="${escapeHTML(imageUrl)}" alt="${escapeHTML(x.title||'')}" referrerpolicy="no-referrer" onerror="this.parentElement.classList.add('missing');this.remove()">`:'<div class="cmp-noimg">Visual unavailable</div>';
     const reviews=x.reviews||x.rating||'—';
-    c.innerHTML=`<div class="cmp-media">${img}</div><div class="cmp-info"><div class="cmp-store">${escapeHTML(x.source||'Inspo')}</div><div class="cmp-name">${escapeHTML(x.title||'Untitled find')}</div>${compareRow('Price',x.price)}${compareRow('Size',x.size)}${compareRow('Reviews',reviews)}${compareRow('Condition',x.condition)}${x.url?`<a class="cmp-open" href="${escapeHTML(x.url)}" target="_blank" rel="noopener">Open source</a>`:''}</div>`;
+    c.innerHTML=`<div class="cmp-media">${img}</div><div class="cmp-info"><div class="cmp-store">${escapeHTML(x.source||'Inspo')}</div><div class="cmp-name">${escapeHTML(x.title||'Untitled find')}</div>${compareRow('Price',x.price)}${compareRow('Size',x.size)}${compareRow('Reviews',reviews)}${compareRow('Condition',x.condition)}${sourceUrl?`<a class="cmp-open" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>`:''}</div>`;
     grid.appendChild(c)
   })
 }
@@ -27,6 +28,7 @@ function cleanAmazonSize(value=''){
   const s=String(value||'').replace(/\s+/g,' ').trim();return s&&s.length<45?s:''
 }
 async function previewDetails(url){
+  url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
   const amazon=isAmazonUrl(url),q=new URLSearchParams();q.set('url',url);q.set('prerender','true');q.set('data.pageText.selector','body');q.set('data.pageText.attr','text');
   if(amazon){
     q.set('data.amazonRating.selector','#acrPopover');q.set('data.amazonRating.attr','title');
