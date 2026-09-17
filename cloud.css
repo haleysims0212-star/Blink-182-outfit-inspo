@@ -6,3 +6,20 @@
 #shareCloudModal .share-choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px;margin:8px 0;font-weight:900}#shareCloudModal .share-choice small{display:block;color:var(--muted);font-weight:700;margin-top:4px;line-height:1.3}.collab-list{margin-top:14px}.collab-row{display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);padding:9px 0}.collab-row .who{flex:1;min-width:0}.collab-row b,.collab-row span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.collab-row span{font-size:11px;color:var(--muted)}.collab-row button{border:0;border-radius:10px;background:#f1dfdc;color:#7f2d27;padding:8px 10px;font-size:11px;font-weight:900}
 .public-wrap{max-width:720px;margin:0 auto;padding:20px 14px 40px}.public-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.public-card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}.public-card img{width:100%;aspect-ratio:1/1.08;object-fit:cover;display:block;background:#eee}.public-info{padding:10px}.public-store{font:800 9px "Courier New",monospace;text-transform:uppercase;color:var(--red)}.public-title{font-weight:900;font-size:13px;line-height:1.2;margin:5px 0 8px}.public-meta{font-size:11px;color:var(--muted);font-weight:700;line-height:1.45}.public-open{display:grid;place-items:center;background:var(--ink);color:white;border-radius:10px;min-height:38px;margin-top:9px;font-size:11px;font-weight:900}
 @media(min-width:620px){.public-grid{grid-template-columns:repeat(3,1fr)}}
+
+.share-setup-btn{min-height:44px;border:1px solid var(--line);background:var(--card);border-radius:13px;padding:0 14px;font-weight:900;color:var(--ink)}
+#phoneShareModal .share-choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:14px;padding:13px;font-weight:900}
+#phoneShareModal .share-choice small{display:block;color:var(--muted);font-weight:700;margin-top:4px;line-height:1.3}
+.phone-share-block{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px;margin:9px 0}
+.phone-share-kicker{font:800 10px/1.2 "Courier New",monospace;letter-spacing:.8px;color:var(--red);margin-bottom:5px}
+.phone-share-block>b{display:block;font-size:15px;margin-bottom:4px}
+.phone-share-block p{margin:0 0 11px;color:var(--muted);font-size:12px;font-weight:700;line-height:1.4}
+.shared-loading{padding:24px 4px;color:var(--muted);font-weight:900;text-align:center}
+.shared-preview{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:10px;background:#fff;margin-bottom:13px}
+.shared-preview img,.shared-preview-ph{width:82px;height:82px;flex:0 0 82px;border-radius:12px;object-fit:cover;background:#eee;display:grid;place-items:center;font-size:24px}
+.shared-preview>div:last-child{min-width:0}
+.shared-preview span{display:block;font:800 9px "Courier New",monospace;text-transform:uppercase;color:var(--red);margin-bottom:4px}
+.shared-preview b{display:block;font-size:14px;line-height:1.25;max-height:52px;overflow:hidden}
+.shared-preview small{display:block;color:var(--muted);font-weight:800;margin-top:5px}
+#sharedBoardSelect{width:100%;min-height:48px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 12px;font-size:15px;font-weight:800;color:var(--ink)}
+.share-cancel{width:100%;min-height:42px;border:0;background:transparent;color:var(--muted);font-weight:900;margin-top:5px}
