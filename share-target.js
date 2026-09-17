@@ -1,5 +1,5 @@
 (function(){
-var APP_URL='https://haleysims0212-star.github.io/Blink-182-outfit-inspo/';
+var APP_URL='https://inspo-projects.github.io/';
 var PENDING_KEY='inspoPendingSharedFind';
 var installPrompt=null;
 var sharedOpen=false;
