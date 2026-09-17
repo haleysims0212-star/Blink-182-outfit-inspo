@@ -2,7 +2,7 @@
 (()=> {
 const SUPABASE_URL='https://lvbtuweiariexxtulqmo.supabase.co';
 const SUPABASE_KEY='sb_publishable_gV3fjp4nxKlMQP2qGoy65A_5Wtd-WA-';
-const APP_URL='https://haleysims0212-star.github.io/Blink-182-outfit-inspo/';
+const APP_URL='https://inspo-projects.github.io/';
 if(!window.supabase)return;
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
 let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
