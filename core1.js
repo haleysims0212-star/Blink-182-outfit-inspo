@@ -4,8 +4,8 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const now=()=>Date.now();
 function seedBoard(){return{id:'blink-182-birthday',type:'inspo',icon:'🖤',title:'Blink-182 Birthday Fits',subtitle:'Grunge outfit ideas for the birthday party.',created:now(),updated:now(),items:clone(starterItems),saved:[]}}
 function loadProjects(){
-  const raw=localStorage.getItem(KEY); let p=raw===null?[seedBoard()]:safeJSON(raw,[]);
-  if(!Array.isArray(p))p=[seedBoard()];
+  const raw=localStorage.getItem(KEY); let p=raw===null?[]:safeJSON(raw,[]);
+  if(!Array.isArray(p))p=[];
   if(!localStorage.getItem(MIG)){
     const b=p.find(x=>x.id==='blink-182-birthday');
     if(b){
