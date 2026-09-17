@@ -7,7 +7,17 @@ if(!window.supabase)return;
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
 let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set();
 const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const localPersist=persist;
+const legacyPersist=persist;
+const LEGACY_CLAIM='inspoLegacyClaimedBy_v1';
+const userCacheKey=()=>cloudUser?`inspoProjects_user_${cloudUser.id}`:KEY;
+function saveLocal(){localStorage.setItem(userCacheKey(),JSON.stringify(projects))}
+function tokenFromUrl(kind){
+  const u=new URL(location.href),q=u.searchParams.get(kind);
+  if(q)return q;
+  const h=new URLSearchParams(location.hash.replace(/^#/,''));
+  return h.get(kind)||'';
+}
+function scrubShareToken(){history.replaceState(null,'',APP_URL)}
 
 function injectUI(){
   document.body.insertAdjacentHTML('afterbegin',`
@@ -22,13 +32,13 @@ function showGate(msg='Sign in to see your boards.'){document.querySelector('.sh
 function hideGate(){document.querySelector('.shell').style.display='';$('#authGate').classList.remove('show')}
 function status(s){$('#authStatus').textContent=s||''}
 async function googleLogin(){
-  localStorage.setItem('inspoPendingJoin',new URL(location.href).searchParams.get('join')||localStorage.getItem('inspoPendingJoin')||'');
+  localStorage.setItem('inspoPendingJoin',tokenFromUrl('join')||localStorage.getItem('inspoPendingJoin')||'');
   const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:APP_URL}});
   if(error)status('Google sign-in still needs to be enabled for this app.');
 }
 async function emailLogin(){
   const email=$('#emailLogin').value.trim(); if(!email){status('Enter your email first.');return}
-  localStorage.setItem('inspoPendingJoin',new URL(location.href).searchParams.get('join')||localStorage.getItem('inspoPendingJoin')||'');
+  localStorage.setItem('inspoPendingJoin',tokenFromUrl('join')||localStorage.getItem('inspoPendingJoin')||'');
   status('Sending your sign-in link…');
   const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:APP_URL,shouldCreateUser:true}});
   status(error?error.message:'Check your email for the sign-in link ✦');
@@ -39,13 +49,13 @@ function normalizeIds(){
     const map=new Map();for(const x of (p.items||[])){const old=x.id;if(!uuidRe.test(x.id))x.id=crypto.randomUUID();map.set(old,x.id)}
     p.saved=(p.saved||[]).map(id=>map.get(id)||id).filter(id=>uuidRe.test(id));
   }
-  localPersist();
+  saveLocal();
 }
 function toBoardRow(p){
   return{id:p.id,owner_id:p._ownerId||cloudUser.id,title:p.title||'Untitled board',subtitle:p.subtitle||null,icon:p.icon||null,board_type:p.type||'inspo'};
 }
-async function syncAll(){
-  if(!cloudUser||syncing||reloading)return;syncing=true;
+async function syncAll(force=false){
+  if(!cloudUser||syncing||(!force&&reloading))return;syncing=true;
   try{
     normalizeIds();
     const presentOwned=new Set();
@@ -66,7 +76,7 @@ async function syncAll(){
       const localIds=new Set();
       for(let pos=0;pos<(p.items||[]).length;pos++){
         const x=p.items[pos]; if(!uuidRe.test(x.id))x.id=crypto.randomUUID();localIds.add(x.id);
-        await sb.from('items').upsert({id:x.id,board_id:p.id,created_by:x._createdBy||cloudUser.id,source_url:x.url||null,source_name:x.source||null,title:x.title||'Untitled find',image_url:x.image||null,tag:x.tag||null,price:x.price||null,size:x.size||null,reviews:x.reviews||null,condition:x.condition||null,position:pos});
+        await sb.from('items').upsert({id:x.id,board_id:p.id,created_by:x._createdBy||cloudUser.id,source_url:safeHttpUrl(x.url)||null,source_name:x.source||null,title:x.title||'Untitled find',image_url:safeImageUrl(x.image)||null,tag:x.tag||null,price:x.price||null,size:x.size||null,reviews:x.reviews||null,condition:x.condition||null,position:pos});
       }
       const {data:dbItems}=await sb.from('items').select('id').eq('board_id',p.id);
       const stale=(dbItems||[]).map(r=>r.id).filter(id=>!localIds.has(id)); if(stale.length)await sb.from('items').delete().in('id',stale);
@@ -75,11 +85,26 @@ async function syncAll(){
       if(saves.length)await sb.from('saved_items').insert(saves);
     }
     for(const id of ownedIds){if(!presentOwned.has(id)){await sb.from('boards').delete().eq('id',id)}}
-    ownedIds=presentOwned; localPersist();
+    ownedIds=presentOwned; saveLocal();
   }catch(e){console.warn('Cloud sync',e)}finally{syncing=false}
 }
-persist=function(){localPersist();if(cloudUser&&!reloading){clearTimeout(syncTimer);syncTimer=setTimeout(syncAll,450)}};
+persist=function(){saveLocal();if(cloudUser&&!reloading){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncAll(false),450)}};
 
+function prepareUserCache(){
+  const cached=safeJSON(localStorage.getItem(userCacheKey()),null);
+  if(Array.isArray(cached)){projects=cached;return}
+  const claimed=localStorage.getItem(LEGACY_CLAIM);
+  const legacy=safeJSON(localStorage.getItem(KEY),[]);
+  if(!claimed&&Array.isArray(legacy)&&legacy.length){
+    projects=legacy;
+    localStorage.setItem(LEGACY_CLAIM,cloudUser.id);
+    saveLocal();
+    localStorage.removeItem(KEY);
+  }else{
+    projects=[];
+    saveLocal();
+  }
+}
 function dbBoardToLocal(b,items,saved,members){
   const its=(items||[]).filter(i=>i.board_id===b.id).sort((a,z)=>(a.position||0)-(z.position||0)).map(i=>({id:i.id,url:i.source_url||'',source:i.source_name||'',title:i.title||'',image:i.image_url||'',tag:i.tag||'',price:i.price||'',size:i.size||'',reviews:i.reviews||'',condition:i.condition||'',_createdBy:i.created_by}));
   const role=b.owner_id===cloudUser.id?'owner':((members||[]).find(m=>m.board_id===b.id&&m.user_id===cloudUser.id)?.role||'viewer');
@@ -96,12 +121,12 @@ async function loadCloud(){
     ]);
     if(be)throw be;
     if((boards||[]).length===0&&projects.length){
-      normalizeIds();for(const p of projects){p._ownerId=cloudUser.id;p._role='owner';p._cloud=false}await syncAll();
+      normalizeIds();for(const p of projects){p._ownerId=cloudUser.id;p._role='owner';p._cloud=false}await syncAll(true);
       return loadCloud();
     }
     projects=(boards||[]).map(b=>dbBoardToLocal(b,items,saved,members));
     ownedIds=new Set(projects.filter(p=>p._role==='owner').map(p=>p.id));
-    localPersist();currentId=null;renderHome();
+    saveLocal();currentId=null;renderHome();
   }catch(e){console.warn(e);toast('Could not load cloud boards')}finally{reloading=false}
 }
 const originalRenderHome=renderHome;
@@ -110,8 +135,8 @@ renderHome=function(){
   $('#homeView').hidden=false;$('#boardView').hidden=true;const wrap=$('#projects');wrap.innerHTML='';$('#emptyHome').hidden=projects.length!==0;
   const groups=[['My Boards',projects.filter(p=>p._role==='owner')],['Shared With Me',projects.filter(p=>p._role!=='owner')]];
   const card=p=>{
-    const btn=document.createElement('button');btn.className='project-card';const imgs=(p.items||[]).filter(x=>x.image).slice(0,4);
-    const cover=imgs.length?'<div class="cover">'+imgs.map(x=>`<img src="${escapeHTML(x.image)}" alt="" referrerpolicy="no-referrer">`).join('')+'</div>':`<div class="cover empty">${escapeHTML(p.icon||'✦')}</div>`;
+    const btn=document.createElement('button');btn.className='project-card';const imgs=(p.items||[]).map(x=>safeImageUrl(x.image)).filter(Boolean).slice(0,4);
+    const cover=imgs.length?'<div class="cover">'+imgs.map(src=>`<img src="${escapeHTML(src)}" alt="" referrerpolicy="no-referrer">`).join('')+'</div>':`<div class="cover empty">${escapeHTML(p.icon||'✦')}</div>`;
     const saved=(p.saved||[]).length,count=(p.items||[]).length;
     btn.innerHTML=cover+`<div class="pc-body"><span class="pill">${p._role==='owner'?(p.type==='project'?'Project board':'Inspo board'):'Shared '+p._role}</span><div class="pc-title">${escapeHTML(p.icon||'')} ${escapeHTML(p.title)}</div><div class="pc-sub">${escapeHTML(p.subtitle||'')}</div><div class="pc-meta">${count} find${count===1?'':'s'}${saved?' · '+saved+' saved':''}</div></div>${p._role==='owner'?'<button class="pc-more" aria-label="Edit board">•••</button>':''}`;
     btn.onclick=e=>{if(e.target.closest('.pc-more')){openBoardModal(p.id);e.stopPropagation();return}openBoard(p.id)};return btn
@@ -129,8 +154,8 @@ async function openCloudShare(){
     <button class="share-choice" id="disableLinks">🔒 Turn off old links<small>Makes the board private again and replaces both share links.</small></button>
     <div class="collab-list"><div class="project-section-title">Collaborators</div><div id="collabRows">Loading…</div></div>`;
   $('#shareCloudModal').classList.add('show');
-  $('#copyViewLink').onclick=async()=>{await sb.from('boards').update({visibility:'link_view'}).eq('id',b.id);b._visibility='link_view';await copyShare(APP_URL+'?view='+b._shareToken,'View link copied')};
-  $('#copyCollabLink').onclick=()=>copyShare(APP_URL+'?join='+b._collaborateToken,'Collaboration link copied');
+  $('#copyViewLink').onclick=async()=>{await sb.from('boards').update({visibility:'link_view'}).eq('id',b.id);b._visibility='link_view';await copyShare(APP_URL+'#view='+b._shareToken,'View link copied')};
+  $('#copyCollabLink').onclick=()=>copyShare(APP_URL+'#join='+b._collaborateToken,'Collaboration link copied');
   $('#disableLinks').onclick=async()=>{await sb.from('boards').update({visibility:'private'}).eq('id',b.id);const {data}=await sb.rpc('rotate_board_tokens',{bid:b.id});const row=Array.isArray(data)?data[0]:data;if(row){b._shareToken=row.share_token;b._collaborateToken=row.collaborate_token}b._visibility='private';toast('Old links turned off')};
   loadCollaborators(b.id);
 }
@@ -145,15 +170,15 @@ async function loadCollaborators(bid){
 $('#shareBoard').onclick=openCloudShare;
 
 async function joinPending(){
-  const u=new URL(location.href),token=u.searchParams.get('join')||localStorage.getItem('inspoPendingJoin');if(!token||!cloudUser)return false;
+  const token=tokenFromUrl('join')||localStorage.getItem('inspoPendingJoin');if(!token||!cloudUser)return false;if(!uuidRe.test(token)){localStorage.removeItem('inspoPendingJoin');toast('That collaboration link is not valid');return false}
   const {data,error}=await sb.rpc('join_board_as_editor',{token});if(error){toast('That collaboration link could not be used');return false}
-  localStorage.removeItem('inspoPendingJoin');history.replaceState(null,'',APP_URL);await loadCloud();if(data)openBoard(data);toast('Board added to Shared With Me');return true
+  localStorage.removeItem('inspoPendingJoin');scrubShareToken();await loadCloud();if(data)openBoard(data);toast('Board added to Shared With Me');return true
 }
 async function publicView(token){
-  document.querySelector('.shell').style.display='none';$('#authGate').classList.remove('show');
+  document.querySelector('.shell').style.display='none';$('#authGate').classList.remove('show');if(!uuidRe.test(token)){document.body.insertAdjacentHTML('beforeend','<div class="public-wrap"><h1>Board unavailable</h1><p class="sub">This link is not valid.</p></div>');return}
   const {data,error}=await sb.rpc('public_board_snapshot',{token});
   if(error||!data){document.body.insertAdjacentHTML('beforeend','<div class="public-wrap"><h1>Board unavailable</h1><p class="sub">This link may have been turned off.</p></div>');return}
-  const b=data.board,items=data.items||[];document.body.insertAdjacentHTML('beforeend',`<main class="public-wrap"><div class="eyebrow">shared inspo board</div><h1>${escapeHTML((b.icon?b.icon+' ':'')+b.title)}</h1><p class="sub">${escapeHTML(b.subtitle||'')}</p><div class="public-grid">${items.map(x=>`<article class="public-card">${x.image_url?`<img src="${escapeHTML(x.image_url)}" alt="" referrerpolicy="no-referrer">`:''}<div class="public-info"><div class="public-store">${escapeHTML(x.source_name||'Inspo')}</div><div class="public-title">${escapeHTML(x.title||'Untitled find')}</div><div class="public-meta">${[x.price,x.size,x.reviews,x.condition].filter(Boolean).map(escapeHTML).join(' · ')}</div>${x.source_url?`<a class="public-open" href="${escapeHTML(x.source_url)}" target="_blank" rel="noopener">Open source</a>`:''}</div></article>`).join('')}</div></main>`);
+  const b=data.board,items=data.items||[];document.body.insertAdjacentHTML('beforeend',`<main class="public-wrap"><div class="eyebrow">shared inspo board</div><h1>${escapeHTML((b.icon?b.icon+' ':'')+b.title)}</h1><p class="sub">${escapeHTML(b.subtitle||'')}</p><div class="public-grid">${items.map(x=>{const imageUrl=safeImageUrl(x.image_url),sourceUrl=safeHttpUrl(x.source_url);return `<article class="public-card">${imageUrl?`<img src="${escapeHTML(imageUrl)}" alt="" referrerpolicy="no-referrer">`:''}<div class="public-info"><div class="public-store">${escapeHTML(x.source_name||'Inspo')}</div><div class="public-title">${escapeHTML(x.title||'Untitled find')}</div><div class="public-meta">${[x.price,x.size,x.reviews,x.condition].filter(Boolean).map(escapeHTML).join(' · ')}</div>${sourceUrl?`<a class="public-open" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>`:''}</div></article>`}).join('')}</div></main>`);
 }
 function subscribeRealtime(){
   if(channel)sb.removeChannel(channel);channel=sb.channel('inspo-cloud').on('postgres_changes',{event:'*',schema:'public',table:'boards'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'items'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'board_members'},scheduleReload).subscribe()
@@ -161,13 +186,18 @@ function subscribeRealtime(){
 let reloadTimer=null;function scheduleReload(){if(syncing)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(async()=>{const open=currentId;await loadCloud();if(open&&projects.some(p=>p.id===open))openBoard(open)},650)}
 async function onSession(session){
   cloudUser=session?.user||null;
-  if(!cloudUser){$('#cloudUserBar').hidden=true;showGate();return}
-  hideGate();$('#cloudUserBar').hidden=false;$('#cloudUserText').textContent=cloudUser.email||'Signed in';subscribeRealtime();await loadCloud();await joinPending()
+  if(!cloudUser){projects=[];currentId=null;$('#cloudUserBar').hidden=true;showGate();return}
+  showGate('Loading your private boards…');
+  prepareUserCache();
+  $('#cloudUserBar').hidden=false;$('#cloudUserText').textContent=cloudUser.email||'Signed in';
+  subscribeRealtime();await loadCloud();await joinPending();hideGate()
 }
 async function start(){
-  injectUI();
-  const q=new URL(location.href).searchParams;if(q.get('view')){await publicView(q.get('view'));return}
-  if(q.get('join'))localStorage.setItem('inspoPendingJoin',q.get('join'));
+  injectUI();showGate('Loading your private boards…');
+  const viewToken=tokenFromUrl('view');
+  if(viewToken){scrubShareToken();await publicView(viewToken);return}
+  const joinToken=tokenFromUrl('join');
+  if(joinToken){if(uuidRe.test(joinToken))localStorage.setItem('inspoPendingJoin',joinToken);scrubShareToken()}
   const {data:{session}}=await sb.auth.getSession();await onSession(session);
   sb.auth.onAuthStateChange((event,session)=>{if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='SIGNED_OUT')setTimeout(()=>onSession(session),0)});
 }
