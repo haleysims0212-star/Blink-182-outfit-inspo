@@ -4,8 +4,8 @@ function openFindModal(id=null){
 async function preview(url){const r=await fetch('https://api.microlink.io/?url='+encodeURIComponent(url));if(!r.ok)throw new Error('preview');const d=(await r.json()).data||{};return{title:d.title||'',image:d.image?.url||'',source:d.publisher||'',description:d.description||''}}
 $('#saveFind').onclick=async()=>{
   const b=current();if(!b)return;let url=$('#findUrl').value.trim(),title=$('#findName').value.trim(),image=$('#findImage').value.trim(),tag=$('#findTag').value.trim(),price=$('#findPrice').value.trim(),size=$('#findSize').value.trim(),reviews=$('#findReviews').value.trim(),condition=$('#findCondition').value.trim(),source='',detailsChecked=0;
-  if(url){try{url=new URL(url).href}catch{$('#findStatus').textContent='That link does not look right yet.';return}}
-  if(image){try{image=new URL(image).href}catch{$('#findStatus').textContent='That photo URL does not look right yet.';return}}
+  if(url){url=safeHttpUrl(url);if(!url){$('#findStatus').textContent='Use a normal http or https source link.';return}}
+  if(image){image=safeImageUrl(image);if(!image){$('#findStatus').textContent='Use a normal http or https photo URL.';return}}
   if(!url&&!image){$('#findStatus').textContent='Add a source link or a photo URL.';return}
   if(!editItemId&&url&&(b.items||[]).some(x=>x.url===url)){$('#findStatus').textContent='That link is already on this board.';return}
   $('#saveFind').textContent='Adding…';$('#saveFind').disabled=true;
