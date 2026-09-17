@@ -1,4 +1,4 @@
-const CACHE='inspo-projects-v1';
+const CACHE='inspo-projects-v2';
 self.addEventListener('install',()=>self.skipWaiting());
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',event=>{
