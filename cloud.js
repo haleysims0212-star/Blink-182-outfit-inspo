@@ -8,6 +8,7 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSe
 let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
 const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const legacyPersist=persist;
+window.inspoCloudApi={getUser:()=>cloudUser,sync:()=>syncAll(false)};
 const LEGACY_CLAIM='inspoLegacyClaimedBy_v1';
 const userCacheKey=()=>cloudUser?`inspoProjects_user_${cloudUser.id}`:KEY;
 function saveLocal(){localStorage.setItem(userCacheKey(),JSON.stringify(projects))}
@@ -198,11 +199,11 @@ function subscribeRealtime(){
 let reloadTimer=null;function scheduleReload(){if(syncing)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(async()=>{const open=currentId;await loadCloud();if(open&&projects.some(p=>p.id===open))openBoard(open)},650)}
 async function onSession(session){
   cloudUser=session?.user||null;
-  if(!cloudUser){projects=[];currentId=null;$('#cloudUserBar').hidden=true;showGate();return}
+  if(!cloudUser){projects=[];currentId=null;$('#cloudUserBar').hidden=true;showGate();window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:false}}));return}
   showGate('Loading your private boards…');
   prepareUserCache();
   $('#cloudUserBar').hidden=false;$('#cloudUserText').textContent=cloudUser.email||'Signed in';
-  subscribeRealtime();await loadCloud();await joinPending();hideGate()
+  subscribeRealtime();await loadCloud();await joinPending();hideGate();window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:true}}))
 }
 async function start(){
   injectUI();await loadAuthCapabilities();showGate('Loading your private boards…');
