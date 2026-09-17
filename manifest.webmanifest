@@ -1,7 +1,7 @@
 {
   "id": "/",
   "name": "Inspo Projects",
-  "short_name": "Inspo",
+  "short_name": "Inspo Projects",
   "description": "Private visual boards for outfits, rooms, trips, projects, gifts and more.",
   "start_url": "/",
   "scope": "/",
@@ -24,12 +24,29 @@
     }
   ],
   "share_target": {
-    "action": "/?share_target=1",
-    "method": "GET",
+    "action": "/share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
     "params": {
       "title": "shared_title",
       "text": "shared_text",
-      "url": "shared_url"
+      "url": "shared_url",
+      "files": [
+        {
+          "name": "shared_media",
+          "accept": [
+            "image/*",
+            "video/*",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+            ".gif",
+            ".mp4",
+            ".mov"
+          ]
+        }
+      ]
     }
   }
 }
