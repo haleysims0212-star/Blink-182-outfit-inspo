@@ -5,7 +5,7 @@ const SUPABASE_KEY='sb_publishable_gV3fjp4nxKlMQP2qGoy65A_5Wtd-WA-';
 const APP_URL='https://haleysims0212-star.github.io/Blink-182-outfit-inspo/';
 if(!window.supabase)return;
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
-let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set();
+let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
 const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const legacyPersist=persist;
 const LEGACY_CLAIM='inspoLegacyClaimedBy_v1';
@@ -31,10 +31,22 @@ function injectUI(){
 function showGate(msg='Sign in to see your boards.'){document.querySelector('.shell').style.display='none';$('#authMsg').textContent=msg;$('#authGate').classList.add('show')}
 function hideGate(){document.querySelector('.shell').style.display='';$('#authGate').classList.remove('show')}
 function status(s){$('#authStatus').textContent=s||''}
+async function loadAuthCapabilities(){
+  try{
+    const r=await fetch(SUPABASE_URL+'/auth/v1/settings',{headers:{apikey:SUPABASE_KEY}});
+    const s=await r.json();googleEnabled=!!s?.external?.google;
+    const btn=$('#googleLogin');
+    if(btn){
+      btn.setAttribute('aria-disabled',googleEnabled?'false':'true');
+      btn.textContent=googleEnabled?'Continue with Google':'Google sign-in needs setup';
+    }
+  }catch{}
+}
 async function googleLogin(){
+  if(!googleEnabled){status('Google sign-in is not enabled yet. Use email for now, or finish the one-time Google setup.');return}
   localStorage.setItem('inspoPendingJoin',tokenFromUrl('join')||localStorage.getItem('inspoPendingJoin')||'');
   const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:APP_URL}});
-  if(error)status('Google sign-in still needs to be enabled for this app.');
+  if(error)status(error.message||'Google sign-in could not start.');
 }
 async function emailLogin(){
   const email=$('#emailLogin').value.trim(); if(!email){status('Enter your email first.');return}
@@ -193,7 +205,7 @@ async function onSession(session){
   subscribeRealtime();await loadCloud();await joinPending();hideGate()
 }
 async function start(){
-  injectUI();showGate('Loading your private boards…');
+  injectUI();await loadAuthCapabilities();showGate('Loading your private boards…');
   const viewToken=tokenFromUrl('view');
   if(viewToken){scrubShareToken();await publicView(viewToken);return}
   const joinToken=tokenFromUrl('join');
