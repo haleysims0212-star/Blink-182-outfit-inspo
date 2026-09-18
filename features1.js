@@ -88,6 +88,24 @@ function cleanAmazonSize(value=''){
 async function previewDetails(url){
   url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
   const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),q=new URLSearchParams();
+
+  if(vinted&&window.inspoCloudApi?.previewVinted){
+    try{
+      const direct=await window.inspoCloudApi.previewVinted(url);
+      if(direct&&(direct.title||direct.image||direct.price||direct.size||direct.condition)){
+        return{
+          title:direct.title||'',
+          image:safeImageUrl(direct.image)||'',
+          source:'Vinted',
+          price:direct.price||'',
+          size:direct.size||'',
+          reviews:'',
+          condition:direct.condition||''
+        };
+      }
+    }catch(e){}
+  }
+
   q.set('url',url);
   q.set('prerender','true');
   q.set('data.pageText.selector','body');
