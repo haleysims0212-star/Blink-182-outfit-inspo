@@ -18,7 +18,7 @@ function loadProjects(){
   }
   return p;
 }
-let projects=loadProjects(), currentId=null, filter='all', idx=0, viewMode='swipe', savedMode='browse', editBoardId=null, editItemId=null, boardTypeChoice='inspo';
+let projects=loadProjects(), currentId=null, filter='all', idx=0, viewMode='grid', savedMode='browse', editBoardId=null, editItemId=null, boardTypeChoice='inspo';
 const current=()=>projects.find(p=>p.id===currentId);
 function persist(){localStorage.setItem(KEY,JSON.stringify(projects))}
 function escapeHTML(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
@@ -43,5 +43,5 @@ function renderHome(){
     wrap.appendChild(btn);
   });
 }
-function openBoard(id){currentId=id;filter='all';idx=0;viewMode='swipe';savedMode='browse';$('#homeView').hidden=true;$('#boardView').hidden=false;window.scrollTo(0,0);renderBoard()}
+function openBoard(id){currentId=id;filter='all';idx=0;viewMode='grid';savedMode='browse';$('#homeView').hidden=true;$('#boardView').hidden=false;window.scrollTo(0,0);renderBoard()}
 function boardList(){const b=current();if(!b)return[];const items=b.items||[];if(filter==='all')return items;if(filter==='saved')return items.filter(x=>(b.saved||[]).includes(x.id));return items.filter(x=>x.source===filter)}
