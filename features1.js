@@ -38,6 +38,19 @@ function isAmazonUrl(url=''){
 function isVintedUrl(url=''){
   try{return new URL(url).hostname.toLowerCase().includes('vinted.')}catch{return false}
 }
+function isDepopUrl(url=''){
+  try{
+    const h=new URL(url).hostname.toLowerCase();
+    return h==='depop.app.link'||h==='depop.com'||h.endsWith('.depop.com');
+  }catch{return false}
+}
+function genericListingTitle(value=''){
+  const s=String(value||'').trim();
+  return !s
+    ||/^(Amazon|Vinted|Depop|Inspo) (outfit option|find)$/i.test(s)
+    ||/^Look what I just found on Depop/i.test(s)
+    ||/^Dress \| Vinted$/i.test(s);
+}
 function cleanListingPrice(value=''){
   const s=typeof value==='string'?value:(value?.value||value?.text||'');
   const m=String(s||'').replace(/\s+/g,' ').match(/(?:US\$|CA\$|AU\$|\$|€|£)\s?\d+(?:[.,]\d{1,2})?/i);
@@ -87,7 +100,25 @@ function cleanAmazonSize(value=''){
 
 async function previewDetails(url){
   url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
-  const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),q=new URLSearchParams();
+  const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),depop=isDepopUrl(url),q=new URLSearchParams();
+
+  if(depop&&window.inspoCloudApi?.previewDepop){
+    try{
+      const direct=await window.inspoCloudApi.previewDepop(url);
+      if(direct&&(direct.title||direct.image||direct.price||direct.size||direct.condition)){
+        return{
+          title:direct.title||'',
+          image:safeImageUrl(direct.image)||'',
+          source:'Depop',
+          price:direct.price||'',
+          size:direct.size||'',
+          reviews:'',
+          condition:direct.condition||'',
+          resolvedUrl:safeHttpUrl(direct.resolvedUrl)||''
+        };
+      }
+    }catch(e){}
+  }
 
   if(vinted&&window.inspoCloudApi?.previewVinted){
     try{
@@ -169,7 +200,7 @@ async function enrichItem(x,force=false){
   try{
     const d=await previewDetails(x.url);let changed=false;
     if(d.image&&!x.image){x.image=d.image;changed=true}
-    if(d.title&&(!x.title||/^(Amazon|Vinted|Inspo) (outfit option|find)$/i.test(x.title))){x.title=d.title;changed=true}
+    if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
     const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
     const amazon=isAmazonUrl(x.url);
     if(amazon){
