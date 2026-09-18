@@ -25,7 +25,27 @@ function renderSwipe(){
 }
 function showMainImage(x){const im=$('#pic'),ph=$('#ph'),src=safeImageUrl(x.image);if(src){im.hidden=false;ph.hidden=true;im.src=src;im.alt=x.title||'';im.referrerPolicy='no-referrer';im.onerror=()=>{im.hidden=true;ph.hidden=false}}else{im.hidden=true;ph.hidden=false}}
 function renderThumbs(a){const t=$('#thumbs'),b=current();a.forEach((x,i)=>{const bt=document.createElement('button');bt.className='thumb'+(i===idx?' on':'');const thumbSrc=safeImageUrl(x.image);if(thumbSrc){const im=document.createElement('img');im.src=thumbSrc;im.alt='';im.referrerPolicy='no-referrer';im.onerror=()=>im.remove();bt.appendChild(im)}if((b.saved||[]).includes(x.id)){const h=document.createElement('span');h.className='mh';h.textContent='♥';bt.appendChild(h)}bt.onclick=()=>{idx=i;renderSwipe();bt.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})};t.appendChild(bt)})}
+function toggleSavedItem(x){
+  const b=current();if(!b||!x)return;
+  b.saved=b.saved||[];
+  const at=b.saved.indexOf(x.id),wasSaved=at>=0;
+  if(wasSaved)b.saved.splice(at,1);else b.saved.push(x.id);
+  b.updated=now();persist();
+  toast(wasSaved?'Removed from saved':'Saved ♡');
+  if(filter==='saved'&&wasSaved&&idx>=boardList().length)idx=Math.max(0,boardList().length-1);
+  renderBoard();
+}
 function renderGrid(){
   const a=boardList(),g=$('#moodgrid');g.innerHTML='';$('#emptyGrid').hidden=a.length>0;
-  const b=current();a.forEach((x,i)=>{const bt=document.createElement('button');bt.className='tile';const tileSrc=safeImageUrl(x.image);bt.innerHTML=tileSrc?`<img src="${escapeHTML(tileSrc)}" alt="" referrerpolicy="no-referrer">`:`<div class="tile-ph">✦<br>${escapeHTML(x.title||'Find')}</div>`;bt.innerHTML+=`<span class="source-dot">${escapeHTML(x.source||'Inspo')}</span>${(b.saved||[]).includes(x.id)?'<span class="tile-heart">♥</span>':''}`;bt.onclick=()=>{viewMode='swipe';idx=i;renderBoard();window.scrollTo({top:0,behavior:'smooth'})};g.appendChild(bt)});
+  const b=current();a.forEach((x,i)=>{
+    const tile=document.createElement('div');tile.className='tile';tile.setAttribute('role','button');tile.tabIndex=0;
+    const tileSrc=safeImageUrl(x.image);
+    tile.innerHTML=tileSrc?`<img src="${escapeHTML(tileSrc)}" alt="" referrerpolicy="no-referrer">`:`<div class="tile-ph">✦<br>${escapeHTML(x.title||'Find')}</div>`;
+    const source=document.createElement('span');source.className='source-dot';source.textContent=x.source||'Inspo';tile.appendChild(source);
+    const heart=document.createElement('button');heart.type='button';heart.className='tile-heart'+((b.saved||[]).includes(x.id)?' on':'');heart.setAttribute('aria-label',(b.saved||[]).includes(x.id)?'Remove from saved':'Save find');heart.textContent=(b.saved||[]).includes(x.id)?'♥':'♡';
+    heart.onclick=e=>{e.stopPropagation();toggleSavedItem(x)};tile.appendChild(heart);
+    const open=()=>{viewMode='swipe';idx=i;renderBoard();window.scrollTo({top:0,behavior:'smooth'})};
+    tile.onclick=open;tile.onkeydown=e=>{if((e.key==='Enter'||e.key===' ')&&e.target===tile){e.preventDefault();open()}};
+    g.appendChild(tile)
+  });
 }
