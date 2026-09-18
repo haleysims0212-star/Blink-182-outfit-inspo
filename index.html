@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Inspo Projects">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 <link rel="stylesheet" href="compare-v2.css?v=1">
 <link rel="stylesheet" href="cloud.css?v=5">
 </head>
@@ -58,6 +58,7 @@
 <div class="field"><label>Name <span style="color:var(--muted);font-weight:700">(optional)</span></label><input id="findName" maxlength="140" placeholder="We’ll try to grab this from the link"></div>
 <div class="field"><label>Photo URL <span style="color:var(--muted);font-weight:700">(optional)</span></label><input id="findImage" type="url" inputmode="url" placeholder="We’ll try to grab the main image"></div>
 <div class="field"><label>Tag <span style="color:var(--muted);font-weight:700">(optional)</span></label><input id="findTag" maxlength="30" placeholder="denim, paint, hotel, idea…"></div><div class="hintline">Comparison details — pulled from the source when possible. You can fix or add anything that is missing.</div><div class="two"><div class="field"><label>Price</label><input id="findPrice" placeholder="$20.00"></div><div class="field"><label>Size</label><input id="findSize" placeholder="XL / US 16–18"></div></div><div class="two"><div class="field"><label>Reviews / rating</label><input id="findReviews" placeholder="4.6 ★ · 218 reviews"></div><div class="field"><label>Condition</label><input id="findCondition" placeholder="Good"></div></div>
+<div id="moveFindWrap" class="field move-find" hidden><label>Move to another board</label><select id="moveFindBoard"><option value="">Keep on this board</option></select><div class="hintline">The find will be removed from this board and added to the one you choose.</div></div>
 <div class="hintline">If the link has a usable preview image and title, the board will fill them in for you.</div>
 <button id="saveFind" class="primary">Add to board</button><button id="deleteFind" class="danger" hidden>Remove from board</button><div id="findStatus" class="status"></div>
 </div></div>
@@ -70,7 +71,7 @@
 <script src="core2.js?v=11"></script>
 <script src="features1.js?v=13"></script>
 <script src="features2.js?v=6"></script>
-<script src="features3.js?v=6"></script>
+<script src="features3.js?v=7"></script>
 <script src="details-fix.js?v=3"></script>
 <script src="features4.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
