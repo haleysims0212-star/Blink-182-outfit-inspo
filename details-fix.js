@@ -1,4 +1,4 @@
-const detailAttempted=new Set();
+let detailAttempted=new Set();
 const hydratingBoards=new Set();
 
 async function hydrateBoardDetails(boardId){
@@ -51,3 +51,8 @@ async function hydrateMissing(){
   if(changed)persist();
   if(currentId)renderBoard();else renderHome();
 }
+
+window.retryBoardDetails=function(boardId){
+  detailAttempted=new Set();
+  return hydrateBoardDetails(boardId||currentId);
+};
