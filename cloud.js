@@ -5,12 +5,14 @@ const SUPABASE_KEY='sb_publishable_gV3fjp4nxKlMQP2qGoy65A_5Wtd-WA-';
 const APP_URL='https://inspo-projects.github.io/';
 if(!window.supabase)return;
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,detectSessionInUrl:true}});
-let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
+let cloudUser=null,cloudProfile=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
 const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const legacyPersist=persist;
 window.inspoCloudApi={
   getUser:()=>cloudUser,
+  getProfile:()=>cloudProfile,
   sync:()=>syncAll(false),
+  refreshFavoriteFaces:()=>loadFavoriteFacesForBoards(),
   previewVinted:async url=>{
     if(!cloudUser)throw new Error('Sign in required');
     const {data,error}=await sb.functions.invoke('vinted-preview',{body:{url}});
@@ -38,11 +40,134 @@ function scrubShareToken(){history.replaceState(null,'',APP_URL)}
 function injectUI(){
   document.body.insertAdjacentHTML('afterbegin',`
   <div id="authGate"><div class="auth-card"><div class="eyebrow">private visual workspace</div><h2>Inspo Projects</h2><p id="authMsg">Sign in to see your boards.</p><button id="googleLogin" class="auth-btn auth-google">Continue with Google</button><div class="auth-or">or</div><input id="emailLogin" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com"><button id="emailLoginBtn" class="auth-btn auth-email">Continue with email</button><div id="authStatus" class="auth-status"></div></div></div>
-  <div id="shareCloudModal" class="overlay"><div class="sheet"><div class="sheet-head"><h2>Share board</h2><button class="close" id="closeCloudShare">×</button></div><div id="shareCloudBody"></div></div></div>`);
-  const home=document.querySelector('.home-actions'); if(home){home.insertAdjacentHTML('beforebegin','<div id="cloudUserBar" class="cloud-user" hidden><span id="cloudUserText"></span><button id="cloudSignOut">Sign out</button></div>')}
+  <div id="shareCloudModal" class="overlay"><div class="sheet"><div class="sheet-head"><h2>Share board</h2><button class="close" id="closeCloudShare">×</button></div><div id="shareCloudBody"></div></div></div>
+  <div id="profileModal" class="overlay"><div class="sheet profile-sheet"><div class="sheet-head"><h2>Edit profile</h2><button class="close" id="closeProfile">×</button></div>
+    <div class="profile-photo-row"><div id="profilePreview" class="profile-preview"></div><div><label class="profile-upload" for="profilePhoto">Choose photo</label><input id="profilePhoto" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><div class="hintline">Square photos work best. We’ll resize it for you.</div></div></div>
+    <div class="field"><label>Name</label><input id="profileName" maxlength="60" placeholder="Your name"></div>
+    <button id="saveProfile" class="primary">Save profile</button><div id="profileStatus" class="status"></div>
+  </div></div>`);
+  const home=document.querySelector('.home-actions'); if(home){home.insertAdjacentHTML('beforebegin','<div id="cloudUserBar" class="cloud-user" hidden><button id="profileButton" class="profile-button" type="button"><span id="profileButtonAvatar" class="profile-button-avatar"></span><span id="cloudUserText"></span></button><button id="cloudSignOut">Sign out</button></div>')}
   $('#closeCloudShare').onclick=()=>$('#shareCloudModal').classList.remove('show');
   $('#shareCloudModal').onclick=e=>{if(e.target.id==='shareCloudModal')e.currentTarget.classList.remove('show')};
+  $('#closeProfile').onclick=()=>$('#profileModal').classList.remove('show');
+  $('#profileModal').onclick=e=>{if(e.target.id==='profileModal')e.currentTarget.classList.remove('show')};
+  $('#profileButton').onclick=openProfileModal;
+  $('#saveProfile').onclick=saveProfileChanges;
+  $('#profilePhoto').onchange=previewSelectedProfilePhoto;
   $('#googleLogin').onclick=googleLogin; $('#emailLoginBtn').onclick=emailLogin; $('#cloudSignOut').onclick=()=>sb.auth.signOut();
+}
+
+function initialsFor(name='',email=''){
+  const base=String(name||'').trim()||String(email||'').split('@')[0]||'?';
+  const parts=base.split(/\s+/).filter(Boolean);
+  if(parts.length>1)return (parts[0][0]+parts[parts.length-1][0]).toUpperCase();
+  return base.slice(0,2).toUpperCase();
+}
+function profileAvatarMarkup(profile,sizeClass=''){
+  const name=profile?.display_name||'';
+  const email=profile?.email||cloudUser?.email||'';
+  const image=safeImageUrl(profile?.avatar_url||'');
+  return image
+    ?'<img class="person-avatar-img '+sizeClass+'" src="'+escapeHTML(image)+'" alt="" referrerpolicy="no-referrer">'
+    :'<span class="person-avatar-fallback '+sizeClass+'">'+escapeHTML(initialsFor(name,email))+'</span>';
+}
+function updateProfileButton(){
+  if(!cloudUser)return;
+  const label=cloudProfile?.display_name||cloudUser.user_metadata?.full_name||cloudUser.user_metadata?.name||cloudUser.email||'Profile';
+  $('#cloudUserText').textContent=label;
+  $('#profileButtonAvatar').innerHTML=profileAvatarMarkup(cloudProfile);
+}
+async function loadMyProfile(){
+  if(!cloudUser)return;
+  let {data,error}=await sb.from('profiles').select('id,email,display_name,avatar_url').eq('id',cloudUser.id).maybeSingle();
+  if(error)console.warn('Profile load',error);
+  if(!data){
+    const display=cloudUser.user_metadata?.full_name||cloudUser.user_metadata?.name||String(cloudUser.email||'').split('@')[0]||'';
+    const row={id:cloudUser.id,email:cloudUser.email||null,display_name:display||null,avatar_url:cloudUser.user_metadata?.avatar_url||null};
+    const created=await sb.from('profiles').upsert(row).select('id,email,display_name,avatar_url').single();
+    data=created.data||row;
+  }
+  cloudProfile=data||{id:cloudUser.id,email:cloudUser.email||'',display_name:'',avatar_url:''};
+  updateProfileButton();
+}
+function renderProfilePreview(profile=cloudProfile){
+  const el=$('#profilePreview');if(!el)return;
+  el.innerHTML=profileAvatarMarkup(profile,'large');
+}
+function openProfileModal(){
+  if(!cloudUser)return;
+  $('#profileName').value=cloudProfile?.display_name||'';
+  $('#profilePhoto').value='';
+  $('#profileStatus').textContent='';
+  renderProfilePreview();
+  $('#profileModal').classList.add('show');
+}
+async function resizeProfileImage(file){
+  if(!file||!file.type.startsWith('image/'))throw new Error('Choose an image file.');
+  const bitmap=await createImageBitmap(file);
+  const size=512,canvas=document.createElement('canvas');canvas.width=size;canvas.height=size;
+  const ctx=canvas.getContext('2d');
+  const scale=Math.max(size/bitmap.width,size/bitmap.height);
+  const w=bitmap.width*scale,h=bitmap.height*scale;
+  ctx.drawImage(bitmap,(size-w)/2,(size-h)/2,w,h);
+  if(bitmap.close)bitmap.close();
+  return await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Could not prepare photo.')),'image/jpeg',0.86));
+}
+async function previewSelectedProfilePhoto(){
+  const file=$('#profilePhoto').files?.[0];if(!file)return;
+  try{
+    const blob=await resizeProfileImage(file);
+    const url=URL.createObjectURL(blob);
+    $('#profilePreview').innerHTML='<img class="person-avatar-img large" src="'+url+'" alt="">';
+  }catch(e){$('#profileStatus').textContent=e.message||'Could not use that photo.'}
+}
+async function saveProfileChanges(){
+  if(!cloudUser)return;
+  const btn=$('#saveProfile'),statusEl=$('#profileStatus');
+  btn.disabled=true;btn.textContent='Saving…';statusEl.textContent='';
+  try{
+    const displayName=$('#profileName').value.trim();
+    let avatarUrl=cloudProfile?.avatar_url||'';
+    const file=$('#profilePhoto').files?.[0];
+    if(file){
+      statusEl.textContent='Uploading photo…';
+      const blob=await resizeProfileImage(file);
+      const path=cloudUser.id+'/avatar-'+Date.now()+'.jpg';
+      const {error:uploadError}=await sb.storage.from('avatars').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+      if(uploadError)throw uploadError;
+      const {data:publicData}=sb.storage.from('avatars').getPublicUrl(path);
+      avatarUrl=publicData?.publicUrl||'';
+    }
+    const payload={id:cloudUser.id,email:cloudUser.email||null,display_name:displayName||null,avatar_url:avatarUrl||null,updated_at:new Date().toISOString()};
+    const {data,error}=await sb.from('profiles').upsert(payload).select('id,email,display_name,avatar_url').single();
+    if(error)throw error;
+    cloudProfile=data||payload;
+    updateProfileButton();
+    await loadFavoriteFacesForBoards();
+    if(currentId)renderBoard();
+    $('#profileModal').classList.remove('show');
+    toast('Profile updated');
+  }catch(e){
+    statusEl.textContent=e.message||'Could not save profile.';
+  }finally{
+    btn.disabled=false;btn.textContent='Save profile';
+  }
+}
+async function loadFavoriteFacesForBoards(){
+  if(!cloudUser||!projects?.length)return;
+  await Promise.all(projects.map(async p=>{
+    const {data,error}=await sb.rpc('board_favorite_faces',{bid:p.id});
+    if(error){p._favoriteFaces={};return}
+    const map={};
+    (data||[]).forEach(row=>{
+      (map[row.item_id]||(map[row.item_id]=[])).push({
+        user_id:row.user_id,
+        display_name:row.display_name||'User',
+        avatar_url:row.avatar_url||''
+      });
+    });
+    p._favoriteFaces=map;
+  }));
 }
 function showGate(msg='Sign in to see your boards.'){document.querySelector('.shell').style.display='none';$('#authMsg').textContent=msg;$('#authGate').classList.add('show')}
 function hideGate(){document.querySelector('.shell').style.display='';$('#authGate').classList.remove('show')}
@@ -154,6 +279,7 @@ async function loadCloud(){
     }
     projects=(boards||[]).map(b=>dbBoardToLocal(b,items,saved,members));
     ownedIds=new Set(projects.filter(p=>p._role==='owner').map(p=>p.id));
+    await loadFavoriteFacesForBoards();
     saveLocal();currentId=null;renderHome();
   }catch(e){console.warn(e);toast('Could not load cloud boards')}finally{reloading=false}
 }
@@ -209,7 +335,13 @@ async function publicView(token){
   const b=data.board,items=data.items||[];document.body.insertAdjacentHTML('beforeend',`<main class="public-wrap"><div class="eyebrow">shared inspo board</div><h1>${escapeHTML((b.icon?b.icon+' ':'')+b.title)}</h1><p class="sub">${escapeHTML(b.subtitle||'')}</p><div class="public-grid">${items.map(x=>{const imageUrl=safeImageUrl(x.image_url),sourceUrl=safeHttpUrl(x.source_url);return `<article class="public-card">${imageUrl?`<img src="${escapeHTML(imageUrl)}" alt="" referrerpolicy="no-referrer">`:''}<div class="public-info"><div class="public-store">${escapeHTML(x.source_name||'Inspo')}</div><div class="public-title">${escapeHTML(x.title||'Untitled find')}</div><div class="public-meta">${[x.price,x.size,x.reviews,x.condition].filter(Boolean).map(escapeHTML).join(' · ')}</div>${sourceUrl?`<a class="public-open" href="${escapeHTML(sourceUrl)}" target="_blank" rel="noopener noreferrer">Open source</a>`:''}</div></article>`}).join('')}</div></main>`);
 }
 function subscribeRealtime(){
-  if(channel)sb.removeChannel(channel);channel=sb.channel('inspo-cloud').on('postgres_changes',{event:'*',schema:'public',table:'boards'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'items'},scheduleReload).on('postgres_changes',{event:'*',schema:'public',table:'board_members'},scheduleReload).subscribe()
+  if(channel)sb.removeChannel(channel);
+  channel=sb.channel('inspo-cloud')
+    .on('postgres_changes',{event:'*',schema:'public',table:'boards'},scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'items'},scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'saved_items'},scheduleReload)
+    .on('postgres_changes',{event:'*',schema:'public',table:'board_members'},scheduleReload)
+    .subscribe()
 }
 let reloadTimer=null;function scheduleReload(){if(syncing)return;clearTimeout(reloadTimer);reloadTimer=setTimeout(async()=>{const open=currentId;await loadCloud();if(open&&projects.some(p=>p.id===open))openBoard(open)},650)}
 async function onSession(session){
@@ -217,7 +349,8 @@ async function onSession(session){
   if(!cloudUser){projects=[];currentId=null;$('#cloudUserBar').hidden=true;showGate();window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:false}}));return}
   showGate('Loading your private boards…');
   prepareUserCache();
-  $('#cloudUserBar').hidden=false;$('#cloudUserText').textContent=cloudUser.email||'Signed in';
+  $('#cloudUserBar').hidden=false;
+  await loadMyProfile();
   subscribeRealtime();await loadCloud();await joinPending();hideGate();window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:true}}))
 }
 async function start(){
