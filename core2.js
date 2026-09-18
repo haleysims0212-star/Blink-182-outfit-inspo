@@ -19,6 +19,13 @@ function renderSwipe(){
   if(!has){$('#emptyTitle').textContent=filter==='saved'?'No saved finds yet':'Nothing here yet';$('#emptyText').textContent=filter==='saved'?'Tap the heart on anything you want to keep.':'Add a find or try another filter.';return}
   idx=Math.max(0,Math.min(idx,a.length-1));const x=a[idx];
   $('#src').textContent=x.source||'Inspo';$('#tag').textContent=x.tag||'';$('#count').textContent=`${idx+1} of ${a.length}`;$('#ttl').textContent=x.title||'Untitled find';
+  const swipePrice=$('#swipePrice');
+  if(swipePrice){
+    swipePrice.classList.remove('muted-price');
+    if(x.price)swipePrice.textContent=x.price;
+    else if(x._priceLoading||!x._priceChecked){swipePrice.textContent='Loading price…';swipePrice.classList.add('muted-price')}
+    else{swipePrice.textContent='Price unavailable';swipePrice.classList.add('muted-price')}
+  }
   $('#heart').textContent=(b.saved||[]).includes(x.id)?'♥':'♡';$('#heart').classList.toggle('on',(b.saved||[]).includes(x.id));
   const shop=$('#shop'),link=$('#picLink'),safeUrl=safeHttpUrl(x.url); if(safeUrl){shop.href=safeUrl;shop.classList.remove('disabled');link.href=safeUrl;link.removeAttribute('aria-disabled')}else{shop.removeAttribute('href');shop.classList.add('disabled');link.removeAttribute('href');link.setAttribute('aria-disabled','true')}
   showMainImage(x); renderThumbs(a);
