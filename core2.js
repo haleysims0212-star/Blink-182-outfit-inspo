@@ -42,6 +42,9 @@ function renderGrid(){
     const tileSrc=safeImageUrl(x.image);
     tile.innerHTML=tileSrc?`<img src="${escapeHTML(tileSrc)}" alt="" referrerpolicy="no-referrer">`:`<div class="tile-ph">✦<br>${escapeHTML(x.title||'Find')}</div>`;
     const source=document.createElement('span');source.className='source-dot';source.textContent=x.source||'Inspo';tile.appendChild(source);
+    if(x.price){
+      const price=document.createElement('span');price.className='tile-price';price.textContent=x.price;tile.appendChild(price);
+    }
     const heart=document.createElement('button');heart.type='button';heart.className='tile-heart'+((b.saved||[]).includes(x.id)?' on':'');heart.setAttribute('aria-label',(b.saved||[]).includes(x.id)?'Remove from saved':'Save find');heart.textContent=(b.saved||[]).includes(x.id)?'♥':'♡';
     heart.onclick=e=>{e.stopPropagation();toggleSavedItem(x)};tile.appendChild(heart);
     const open=()=>{viewMode='swipe';idx=i;renderBoard();window.scrollTo({top:0,behavior:'smooth'})};
