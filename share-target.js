@@ -200,9 +200,11 @@ function openPhoneSetup(){
     '<button id="installInspo" class="primary">'+(standalone?'Installed ✓':'Install Inspo Projects')+'</button>'+
     '<div id="installHelp" class="hintline"></div></div>'+
     '<div class="phone-share-block"><div class="phone-share-kicker">IPHONE</div>'+
-    '<b>No Shortcut setup needed</b>'+
-    '<p>In the shopping app, tap Share → Copy Link. Then open Inspo Projects and tap <b>Paste link</b>. We’ll pull in the item and let you choose a board.</p>'+
-    '<button id="iphonePasteHelp" class="share-choice">Try Paste link<small>Works without creating an Apple Shortcut.</small></button></div>';
+    '<b>Add Inspo Projects to your Home Screen</b>'+
+    '<p><b>1.</b> Open Inspo Projects in <b>Safari</b>.<br><b>2.</b> Tap the Share button.<br><b>3.</b> Tap <b>Add to Home Screen</b>.<br><b>4.</b> Turn on <b>Open as Web App</b>.<br><b>5.</b> Tap <b>Add</b>.</p>'+
+    '<button id="copyIphoneAppLink" class="share-choice">Copy app link<small>Send this to an iPhone user so they can open it in Safari.</small></button>'+
+    '<p class="iphone-save-note">To save a product later: Share → Copy Link → open Inspo Projects → <b>Paste link</b>.</p>'+
+    '<button id="iphonePasteHelp" class="share-choice">Try Paste link<small>No Apple Shortcut needed.</small></button></div>';
   q('phoneShareModal').classList.add('show');
   q('installInspo').onclick=async function(){
     if(standalone)return;
@@ -213,6 +215,10 @@ function openPhoneSetup(){
     }else{
       q('installHelp').textContent='In Chrome, tap ⋮ and choose Install app or Add to Home screen. Then reopen Inspo Projects from the new icon.';
     }
+  };
+  q('copyIphoneAppLink').onclick=async function(){
+    try{await navigator.clipboard.writeText(APP_URL);toast('App link copied')}
+    catch(e){toast('Could not copy app link')}
   };
   q('iphonePasteHelp').onclick=function(){q('phoneShareModal').classList.remove('show');pasteLinkFlow()};
 }
