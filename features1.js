@@ -51,6 +51,10 @@ function genericListingTitle(value=''){
     ||/^Look what I just found on Depop/i.test(s)
     ||/^Dress \| Vinted$/i.test(s);
 }
+function genericDepopImage(value=''){
+  const s=String(value||'');
+  return !!s&&!/media-photos\.depop\.com/i.test(s);
+}
 function cleanListingPrice(value=''){
   const s=typeof value==='string'?value:(value?.value||value?.text||'');
   const m=String(s||'').replace(/\s+/g,' ').match(/(?:US\$|CA\$|AU\$|\$|€|£)\s?\d+(?:[.,]\d{1,2})?/i);
@@ -199,8 +203,10 @@ async function enrichItem(x,force=false){
   if(!force&&hasDetails&&fresh)return false;
   try{
     const d=await previewDetails(x.url);let changed=false;
-    if(d.image&&!x.image){x.image=d.image;changed=true}
+    const depop=isDepopUrl(x.url);
+    if(d.image&&(!x.image||(depop&&(genericListingTitle(x.title)||genericDepopImage(x.image))))){x.image=d.image;changed=true}
     if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
+    if(depop&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
     const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
     const amazon=isAmazonUrl(x.url);
     if(amazon){
