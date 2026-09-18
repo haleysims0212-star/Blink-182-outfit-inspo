@@ -8,7 +8,16 @@ const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSe
 let cloudUser=null,syncTimer=null,syncing=false,reloading=false,channel=null,ownedIds=new Set(),googleEnabled=false;
 const uuidRe=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const legacyPersist=persist;
-window.inspoCloudApi={getUser:()=>cloudUser,sync:()=>syncAll(false)};
+window.inspoCloudApi={
+  getUser:()=>cloudUser,
+  sync:()=>syncAll(false),
+  previewVinted:async url=>{
+    if(!cloudUser)throw new Error('Sign in required');
+    const {data,error}=await sb.functions.invoke('vinted-preview',{body:{url}});
+    if(error)throw error;
+    return data||{};
+  }
+};
 const LEGACY_CLAIM='inspoLegacyClaimedBy_v1';
 const userCacheKey=()=>cloudUser?`inspoProjects_user_${cloudUser.id}`:KEY;
 function saveLocal(){localStorage.setItem(userCacheKey(),JSON.stringify(projects))}
