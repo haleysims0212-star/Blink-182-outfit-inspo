@@ -16,7 +16,7 @@ async function hydrateBoardDetails(boardId){
         try{
           const d=await previewDetails(x.url);
           if(d.image&&!x.image){x.image=d.image;changed=true}
-          if(d.title&&(!x.title||/^(Amazon|Vinted|Inspo) (outfit option|find)$/i.test(x.title))){x.title=d.title;changed=true}
+          if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
           for(const k of ['price','size','reviews','condition']){
             if(d[k]&&!x[k]){x[k]=d[k];changed=true}
@@ -42,7 +42,7 @@ async function hydrateMissing(){
         try{
           const d=await preview(x.url);
           if(d.image){x.image=d.image;changed=true}
-          if(d.title&&(!x.title||/^(Amazon|Vinted|Inspo) (outfit option|find)$/i.test(x.title))){x.title=d.title;changed=true}
+          if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
         }catch(e){}
       }
