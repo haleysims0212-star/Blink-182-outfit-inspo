@@ -12,12 +12,18 @@ function renderCompare(){
 }
 function compareRow(label,value){return `<div class="cmp-row"><span>${label}</span><b>${escapeHTML(value||'—')}</b></div>`}
 function parseDetails(text=''){
-  const s=String(text).replace(/\s+/g,' ').trim(),out={};let m=s.match(/\$\s?\d+(?:[.,]\d{2})?/);if(m)out.price=m[0].replace(/\s+/g,'');
+  const s=String(text).replace(/\s+/g,' ').trim(),out={};let m=s.match(/(?:US\$|CA\$|AU\$|\$|€|£)\s?\d+(?:[.,]\d{1,2})?/i);if(m)out.price=m[0].replace(/\s+/g,'');
   m=s.match(/\b(XXXL|XXL|XL|L|M|S|XS|XXS)\s*\/\s*US\s*(\d{1,2}(?:\s*[-–]\s*\d{1,2})?)/i);if(m)out.size=m[1].toUpperCase()+' / US '+m[2].replace(/\s+/g,'');else{m=s.match(/\bSize\s*[:\-]?\s*(XXXL|XXL|XL|L|M|S|XS|XXS|\d{1,2}(?:\s*[-–]\s*\d{1,2})?)/i);if(m)out.size=m[1].toUpperCase()}
   const star=s.match(/([0-5](?:\.\d)?)\s*(?:out of 5|stars?|★)/i),rev=s.match(/([\d,]+)\s*(?:ratings?|reviews?)/i);if(star||rev)out.reviews=[star?star[1]+' ★':'',rev?rev[1]+' reviews':''].filter(Boolean).join(' · ');
   m=s.match(/\b(new with tags|new without tags|very good|good|satisfactory|used|new)\b/i);if(m)out.condition=m[1].replace(/\b\w/g,c=>c.toUpperCase());return out
 }
 function isAmazonUrl(url=''){try{const h=new URL(url).hostname.toLowerCase();return h==='a.co'||h.includes('amazon.')}catch{return false}}
+function isVintedUrl(url=''){try{return new URL(url).hostname.toLowerCase().includes('vinted.')}catch{return false}}
+function cleanListingPrice(value=''){
+  const s=typeof value==='string'?value:(value?.value||value?.text||'');
+  const m=String(s||'').replace(/\s+/g,' ').match(/(?:US\$|CA\$|AU\$|\$|€|£)\s?\d+(?:[.,]\d{1,2})?/i);
+  return m?m[0].replace(/\s+/g,''):'';
+}
 function amazonReviews(rating='',count=''){
   const r=String(rating||'').match(/([0-5](?:\.\d)?)/),c=String(count||'').match(/([\d,]+)/);return [r?r[1]+' ★':'',c?c[1]+' reviews':''].filter(Boolean).join(' · ')
 }
@@ -29,7 +35,13 @@ function cleanAmazonSize(value=''){
 }
 async function previewDetails(url){
   url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
-  const amazon=isAmazonUrl(url),q=new URLSearchParams();q.set('url',url);q.set('prerender','true');q.set('data.pageText.selector','body');q.set('data.pageText.attr','text');
+  const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),q=new URLSearchParams();q.set('url',url);q.set('prerender','true');q.set('data.pageText.selector','body');q.set('data.pageText.attr','text');
+  if(vinted){
+    q.set('data.vintedPrice.selector','[data-testid="item-sidebar-price-container"]');
+    q.set('data.vintedPrice.attr','text');
+    q.set('data.vintedTotal.selector','[data-testid="total-combined-price"]');
+    q.set('data.vintedTotal.attr','text');
+  }
   if(amazon){
     q.set('data.amazonRating.selector','#acrPopover');q.set('data.amazonRating.attr','title');
     q.set('data.amazonReviewCount.selector','#acrCustomerReviewText');q.set('data.amazonReviewCount.attr','aria-label');
@@ -38,6 +50,10 @@ async function previewDetails(url){
   }
   const r=await fetch('https://api.microlink.io/?'+q.toString());if(!r.ok)throw new Error('details');const j=await r.json(),d=j.data||{},text=typeof d.pageText==='string'?d.pageText:(d.pageText?.value||''),det=parseDetails([d.title,d.description,text].filter(Boolean).join(' '));
   const amazonReview=amazonReviews(d.amazonRating,d.amazonReviewCount);
+  if(vinted){
+    const exactPrice=cleanListingPrice(d.vintedPrice)||cleanListingPrice(d.vintedTotal)||cleanListingPrice(text)||det.price||'';
+    return{title:d.title||'',image:d.image?.url||'',source:d.publisher||'Vinted',price:exactPrice,size:det.size||'',reviews:det.reviews||'',condition:det.condition||''}
+  }
   if(amazon){
     const exactPrice=cleanAmazonPrice(d.amazonPrice),exactSize=cleanAmazonSize(d.amazonSize);
     return{title:d.title||'',image:d.image?.url||'',source:d.publisher||'',price:exactPrice||'See Amazon',size:exactSize||'Choose on Amazon',reviews:amazonReview||det.reviews||'',condition:''}
