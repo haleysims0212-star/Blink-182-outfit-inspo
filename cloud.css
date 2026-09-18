@@ -28,3 +28,5 @@
 #pasteLinkModal input{width:100%;min-height:52px;border:1px solid var(--line);border-radius:13px;padding:0 13px;font-size:16px;background:#fff;color:var(--ink)}
 .home-actions{display:flex;gap:8px;flex-wrap:wrap}
 .home-actions .primary,.home-actions .share-setup-btn{flex:1 1 150px}
+
+.iphone-save-note{margin-top:12px!important;padding-top:10px;border-top:1px solid var(--line)}
