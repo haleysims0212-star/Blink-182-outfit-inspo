@@ -1,5 +1,6 @@
 (function(){
 var APP_URL='https://inspo-projects.github.io/';
+var IPHONE_SHORTCUT_URL=''; // Paste the published iCloud Shortcut link here once created.
 var PENDING_KEY='inspoPendingSharedFind';
 var installPrompt=null;
 var sharedOpen=false;
@@ -200,11 +201,12 @@ function openPhoneSetup(){
     '<button id="installInspo" class="primary">'+(standalone?'Installed ✓':'Install Inspo Projects')+'</button>'+
     '<div id="installHelp" class="hintline"></div></div>'+
     '<div class="phone-share-block"><div class="phone-share-kicker">IPHONE</div>'+
-    '<b>Add Inspo Projects to your Home Screen</b>'+
-    '<p><b>1.</b> Open Inspo Projects in <b>Safari</b>.<br><b>2.</b> Tap the Share button.<br><b>3.</b> Tap <b>Add to Home Screen</b>.<br><b>4.</b> Turn on <b>Open as Web App</b>.<br><b>5.</b> Tap <b>Add</b>.</p>'+
-    '<button id="copyIphoneAppLink" class="share-choice">Copy app link<small>Send this to an iPhone user so they can open it in Safari.</small></button>'+
-    '<p class="iphone-save-note">To save a product later: Share → Copy Link → open Inspo Projects → <b>Paste link</b>.</p>'+
-    '<button id="iphonePasteHelp" class="share-choice">Try Paste link<small>No Apple Shortcut needed.</small></button></div>';
+    '<b>Set up iPhone sharing</b>'+
+    '<p>For the easiest setup, add Inspo Projects to your Home Screen and install the one-tap Share Shortcut.</p>'+
+    '<button id="installIphoneShortcut" class="share-choice iphone-primary">🍎 Add Inspo to my Share Menu<small>'+(IPHONE_SHORTCUT_URL?'One-time setup. Tap Get Shortcut on the next screen.':'The shortcut install link still needs to be published once.')+'</small></button>'+
+    '<button id="showIphoneHomeSteps" class="share-choice">▣ Add Inspo Projects to my Home Screen<small>Safari → Share → Add to Home Screen → Open as Web App.</small></button>'+
+    '<p class="iphone-save-note">If you skip the shortcut, you can still use Share → Copy Link → open Inspo Projects → <b>Paste link</b>.</p>'+
+    '<button id="iphonePasteHelp" class="share-choice">Use Paste link instead<small>No Shortcut setup needed.</small></button></div>';
   q('phoneShareModal').classList.add('show');
   q('installInspo').onclick=async function(){
     if(standalone)return;
@@ -216,9 +218,21 @@ function openPhoneSetup(){
       q('installHelp').textContent='In Chrome, tap ⋮ and choose Install app or Add to Home screen. Then reopen Inspo Projects from the new icon.';
     }
   };
-  q('copyIphoneAppLink').onclick=async function(){
-    try{await navigator.clipboard.writeText(APP_URL);toast('App link copied')}
-    catch(e){toast('Could not copy app link')}
+  q('installIphoneShortcut').onclick=function(){
+    if(!IPHONE_SHORTCUT_URL){
+      toast('Shortcut install link is not published yet');
+      return;
+    }
+    location.href=IPHONE_SHORTCUT_URL;
+  };
+  q('showIphoneHomeSteps').onclick=function(){
+    q('phoneShareBody').insertAdjacentHTML('beforeend',
+      '<div id="iphoneHomeSteps" class="iphone-steps"><b>Add to Home Screen</b><p>1. Open Inspo Projects in Safari.<br>2. Tap Share.<br>3. Tap Add to Home Screen.<br>4. Turn on Open as Web App.<br>5. Tap Add.</p><button id="copyIphoneAppLink" class="share-choice">Copy app link</button></div>');
+    q('showIphoneHomeSteps').disabled=true;
+    q('copyIphoneAppLink').onclick=async function(){
+      try{await navigator.clipboard.writeText(APP_URL);toast('App link copied')}
+      catch(e){toast('Could not copy app link')}
+    };
   };
   q('iphonePasteHelp').onclick=function(){q('phoneShareModal').classList.remove('show');pasteLinkFlow()};
 }
