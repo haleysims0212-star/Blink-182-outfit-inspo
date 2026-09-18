@@ -30,3 +30,9 @@
 .home-actions .primary,.home-actions .share-setup-btn{flex:1 1 150px}
 
 .iphone-save-note{margin-top:12px!important;padding-top:10px;border-top:1px solid var(--line)}
+
+#phoneShareModal .iphone-primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+#phoneShareModal .iphone-primary small{color:#ffffffb8}
+.iphone-steps{margin-top:10px;padding:13px;border-radius:14px;background:var(--soft)}
+.iphone-steps>b{display:block;margin-bottom:5px}
+.iphone-steps p{margin:0 0 9px;line-height:1.5}
