@@ -23,3 +23,5 @@ h1{margin:0;font:900 34px/1.02 Impact,"Arial Black",Arial,sans-serif;letter-spac
 @media(min-width:620px){.projects{grid-template-columns:1fr 1fr}.project-card{grid-template-columns:120px 1fr}.boardhead h1{font-size:38px}.moodgrid{grid-template-columns:repeat(3,1fr)}.overlay{align-items:center}}
 
 .copyright{padding:28px 14px 34px;text-align:center;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.2px}
+
+.move-find{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}.move-find select{font-weight:800}
