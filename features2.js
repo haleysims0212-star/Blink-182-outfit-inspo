@@ -1,7 +1,7 @@
 function move(n){const a=boardList();if(!a.length)return;idx=(idx+n+a.length)%a.length;renderSwipe();const active=$('.thumb.on');if(active)active.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'})}
 $('#prev').onclick=()=>move(-1);$('#next').onclick=()=>move(1);$('#backHome').onclick=()=>{currentId=null;renderHome();window.scrollTo(0,0)};
 $('#swipeViewBtn').onclick=()=>{viewMode='swipe';renderBoard()};$('#gridViewBtn').onclick=()=>{viewMode='grid';renderBoard()};
-$('#heart').onclick=()=>{const b=current(),x=boardList()[idx];if(!x)return;b.saved=b.saved||[];const at=b.saved.indexOf(x.id);if(at>=0)b.saved.splice(at,1);else b.saved.push(x.id);b.updated=now();persist();toast(at>=0?'Removed from saved':'Saved ♡');if(filter==='saved'&&at>=0&&idx>=boardList().length)idx=Math.max(0,boardList().length-1);renderBoard()};
+$('#heart').onclick=()=>{const x=boardList()[idx];if(x)toggleSavedItem(x)};
 $('#itemMore').onclick=()=>{const x=boardList()[idx];if(x)openFindModal(x.id)};$('#editBoard').onclick=()=>openBoardModal(currentId);$('#addFind').onclick=()=>openFindModal(null);
 $$('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));$$('.overlay').forEach(o=>o.onclick=e=>{if(e.target===o)closeModal(o.id)});
 function openModal(id){$('#'+id).classList.add('show')}function closeModal(id){$('#'+id).classList.remove('show')}
