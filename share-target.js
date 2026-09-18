@@ -33,16 +33,24 @@ function ensureUI(){
       '<div id="sharedFindBody"></div></div></div>'+
       '<div id="phoneShareModal" class="overlay"><div class="sheet">'+
       '<div class="sheet-head"><h2>Phone sharing</h2><button class="close" id="closePhoneShare">×</button></div>'+
-      '<div id="phoneShareBody"></div></div></div>'
+      '<div id="phoneShareBody"></div></div></div>'+
+      '<div id="pasteLinkModal" class="overlay"><div class="sheet">'+
+      '<div class="sheet-head"><h2>Paste a link</h2><button class="close" id="closePasteLink">×</button></div>'+
+      '<div class="field"><label>Product or inspo link</label><input id="pasteLinkInput" type="url" inputmode="url" placeholder="Paste the link here"></div>'+
+      '<button id="usePastedLink" class="primary">Add this find</button><div id="pasteLinkStatus" class="hintline"></div></div></div>'
     );
     q('closeSharedFind').onclick=function(){closeShared(true)};
     q('closePhoneShare').onclick=function(){q('phoneShareModal').classList.remove('show')};
+    q('closePasteLink').onclick=function(){q('pasteLinkModal').classList.remove('show')};
+    q('usePastedLink').onclick=useManualPastedLink;
     q('sharedFindModal').onclick=function(e){if(e.target.id==='sharedFindModal')closeShared(true)};
     q('phoneShareModal').onclick=function(e){if(e.target.id==='phoneShareModal')q('phoneShareModal').classList.remove('show')};
+    q('pasteLinkModal').onclick=function(e){if(e.target.id==='pasteLinkModal')q('pasteLinkModal').classList.remove('show')};
   }
   var home=document.querySelector('.home-actions');
-  if(home&&!q('phoneSharingSetup')){
-    home.insertAdjacentHTML('beforeend','<button id="phoneSharingSetup" class="share-setup-btn">↗ Phone sharing</button>');
+  if(home&&!q('pasteLinkBtn')){
+    home.insertAdjacentHTML('beforeend','<button id="pasteLinkBtn" class="share-setup-btn">＋ Paste link</button><button id="phoneSharingSetup" class="share-setup-btn">↗ Phone sharing</button>');
+    q('pasteLinkBtn').onclick=pasteLinkFlow;
     q('phoneSharingSetup').onclick=openPhoneSetup;
   }
 }
@@ -147,6 +155,41 @@ async function openPending(){
   };
   return true;
 }
+
+function queueSharedUrl(url,title=''){
+  url=safeHttpUrl(url);
+  if(!url)return false;
+  localStorage.setItem(PENDING_KEY,JSON.stringify({url:url,title:title||'',text:'',received:Date.now()}));
+  return true;
+}
+async function pasteLinkFlow(){
+  ensureUI();
+  var text='';
+  try{
+    if(navigator.clipboard&&navigator.clipboard.readText)text=await navigator.clipboard.readText();
+  }catch(e){}
+  var url=extractUrl(text)||safeHttpUrl(text);
+  if(url){
+    queueSharedUrl(url);
+    await openPending();
+    return;
+  }
+  q('pasteLinkInput').value='';
+  q('pasteLinkStatus').textContent='Copy a product link first, then paste it here.';
+  q('pasteLinkModal').classList.add('show');
+  setTimeout(function(){q('pasteLinkInput').focus()},100);
+}
+function useManualPastedLink(){
+  var raw=q('pasteLinkInput').value.trim();
+  var url=extractUrl(raw)||safeHttpUrl(raw);
+  if(!url){
+    q('pasteLinkStatus').textContent='That does not look like a normal web link yet.';
+    return;
+  }
+  q('pasteLinkModal').classList.remove('show');
+  queueSharedUrl(url);
+  openPending();
+}
 function openPhoneSetup(){
   ensureUI();
   var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
@@ -157,9 +200,9 @@ function openPhoneSetup(){
     '<button id="installInspo" class="primary">'+(standalone?'Installed ✓':'Install Inspo Projects')+'</button>'+
     '<div id="installHelp" class="hintline"></div></div>'+
     '<div class="phone-share-block"><div class="phone-share-kicker">IPHONE</div>'+
-    '<b>Use an Apple Shortcut</b>'+
-    '<p>The shortcut receives a shared URL and opens this same save-to-board screen. It stays free.</p>'+
-    '<button id="copyShortcutBase" class="share-choice">Copy Shortcut base link<small>Use this when we set up the shortcut on the iPhone.</small></button></div>';
+    '<b>No Shortcut setup needed</b>'+
+    '<p>In the shopping app, tap Share → Copy Link. Then open Inspo Projects and tap <b>Paste link</b>. We’ll pull in the item and let you choose a board.</p>'+
+    '<button id="iphonePasteHelp" class="share-choice">Try Paste link<small>Works without creating an Apple Shortcut.</small></button></div>';
   q('phoneShareModal').classList.add('show');
   q('installInspo').onclick=async function(){
     if(standalone)return;
@@ -171,10 +214,7 @@ function openPhoneSetup(){
       q('installHelp').textContent='In Chrome, tap ⋮ and choose Install app or Add to Home screen. Then reopen Inspo Projects from the new icon.';
     }
   };
-  q('copyShortcutBase').onclick=async function(){
-    try{await navigator.clipboard.writeText(APP_URL+'?share_target=1&shared_url=');toast('Shortcut link copied')}
-    catch(e){toast('Could not copy link')}
-  };
+  q('iphonePasteHelp').onclick=function(){q('phoneShareModal').classList.remove('show');pasteLinkFlow()};
 }
 window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();installPrompt=e});
 window.addEventListener('appinstalled',function(){installPrompt=null;toast('Inspo Projects installed')});
