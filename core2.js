@@ -1,3 +1,17 @@
+function favoriteFaceHTML(face){
+  const name=face?.display_name||'User',img=safeImageUrl(face?.avatar_url||'');
+  const initials=String(name).trim().split(/\s+/).filter(Boolean);
+  const letters=(initials.length>1?(initials[0][0]+initials[initials.length-1][0]):String(name).slice(0,2)).toUpperCase();
+  return img
+    ?'<span class="listing-face" title="'+escapeHTML(name)+'"><img src="'+escapeHTML(img)+'" alt="" referrerpolicy="no-referrer"></span>'
+    :'<span class="listing-face initials" title="'+escapeHTML(name)+'">'+escapeHTML(letters||'?')+'</span>';
+}
+function favoriteFacesFor(board,itemId){return board?._favoriteFaces?.[itemId]||[]}
+function favoriteFacesHTML(board,itemId){
+  const faces=favoriteFacesFor(board,itemId);
+  if(!faces.length)return '';
+  return '<div class="listing-face-stack" aria-label="'+faces.length+' saved">'+faces.slice(0,5).map(favoriteFaceHTML).join('')+(faces.length>5?'<span class="listing-face initials more-faces">+'+(faces.length-5)+'</span>':'')+'</div>';
+}
 function renderBoard(){
   const b=current(); if(!b){renderHome();return}
   $('#boardType').textContent=b.type==='project'?'Project board':'Inspo board';$('#boardTitle').textContent=(b.icon?b.icon+' ':'')+b.title;$('#boardSub').textContent=b.subtitle||'';
@@ -27,6 +41,7 @@ function renderSwipe(){
     else{swipePrice.textContent='Price unavailable';swipePrice.classList.add('muted-price')}
   }
   $('#heart').textContent=(b.saved||[]).includes(x.id)?'♥':'♡';$('#heart').classList.toggle('on',(b.saved||[]).includes(x.id));
+  const swipeLikes=$('#swipeLikes');if(swipeLikes)swipeLikes.innerHTML=favoriteFacesHTML(b,x.id);
   const shop=$('#shop'),link=$('#picLink'),safeUrl=safeHttpUrl(x.url); if(safeUrl){shop.href=safeUrl;shop.classList.remove('disabled');link.href=safeUrl;link.removeAttribute('aria-disabled')}else{shop.removeAttribute('href');shop.classList.add('disabled');link.removeAttribute('href');link.setAttribute('aria-disabled','true')}
   showMainImage(x); renderThumbs(a);
 }
@@ -37,6 +52,14 @@ function toggleSavedItem(x){
   b.saved=b.saved||[];
   const at=b.saved.indexOf(x.id),wasSaved=at>=0;
   if(wasSaved)b.saved.splice(at,1);else b.saved.push(x.id);
+  b._favoriteFaces=b._favoriteFaces||{};
+  const user=window.inspoCloudApi?.getUser?.(),profile=window.inspoCloudApi?.getProfile?.();
+  let faces=b._favoriteFaces[x.id]||[];
+  if(user){
+    faces=faces.filter(f=>f.user_id!==user.id);
+    if(!wasSaved)faces.push({user_id:user.id,display_name:profile?.display_name||user.email?.split('@')[0]||'You',avatar_url:profile?.avatar_url||''});
+    b._favoriteFaces[x.id]=faces;
+  }
   b.updated=now();persist();
   toast(wasSaved?'Removed from saved':'Saved ♡');
   if(filter==='saved'&&wasSaved&&idx>=boardList().length)idx=Math.max(0,boardList().length-1);
@@ -71,6 +94,7 @@ function renderGrid(){
       price.classList.add('muted-price');
     }
     info.appendChild(price);
+    const faces=document.createElement('div');faces.className='tile-likes';faces.innerHTML=favoriteFacesHTML(b,x.id);info.appendChild(faces);
     tile.appendChild(info);
 
     const open=()=>{viewMode='swipe';idx=i;renderBoard();window.scrollTo({top:0,behavior:'smooth'})};
