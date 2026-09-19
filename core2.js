@@ -10,7 +10,7 @@ function favoriteFacesFor(board,itemId){return board?._favoriteFaces?.[itemId]||
 function favoriteFacesHTML(board,itemId){
   const faces=favoriteFacesFor(board,itemId);
   if(!faces.length)return '';
-  return '<div class="listing-face-stack" aria-label="'+faces.length+' saved">'+faces.slice(0,5).map(favoriteFaceHTML).join('')+(faces.length>5?'<span class="listing-face initials more-faces">+'+(faces.length-5)+'</span>':'')+'</div>';
+  return '<div class="listing-like-row"><span class="liked-by-label">Liked by</span><div class="listing-face-stack" aria-label="'+faces.length+' people liked this">'+faces.slice(0,5).map(favoriteFaceHTML).join('')+(faces.length>5?'<span class="listing-face initials more-faces">+'+(faces.length-5)+'</span>':'')+'</div></div>';
 }
 function renderBoard(){
   const b=current(); if(!b){renderHome();return}
