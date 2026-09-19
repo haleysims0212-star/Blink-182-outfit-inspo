@@ -12,6 +12,17 @@ window.inspoCloudApi={
   getUser:()=>cloudUser,
   getProfile:()=>cloudProfile,
   sync:()=>syncAll(false),
+  createBoard:async p=>{
+    if(!cloudUser)throw new Error('Sign in required');
+    if(!uuidRe.test(p.id))p.id=crypto.randomUUID();
+    p._ownerId=cloudUser.id;p._role='owner';
+    const {error}=await sb.from('boards').insert(toBoardRow(p));
+    if(error)throw error;
+    p._cloud=true;
+    ownedIds.add(p.id);
+    saveLocal();
+    return true;
+  },
   refreshFavoriteFaces:async()=>{
     await loadFavoriteFacesForBoards();
     if(currentId)renderBoard();
