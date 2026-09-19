@@ -21,10 +21,9 @@ async function hydrateBoardDetails(boardId){
           if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
           if(ebay&&genericListingTitle(x.title)&&!d.title){x.title='eBay listing';changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
-          const ebay=isEbayUrl(x.url);
           if(ebay){
             if(d.priceExact===true&&x.price!==d.price){x.price=d.price||'';changed=true}
-            else if(d.priceExact===false&&x.price){x.price='';changed=true}
+            else if(d.priceExact!==true&&x.price){x.price='';changed=true}
             for(const k of ['size','condition'])if(d[k]&&!x[k]){x[k]=d[k];changed=true}
           }else{
             for(const k of ['price','size','reviews','condition']){
