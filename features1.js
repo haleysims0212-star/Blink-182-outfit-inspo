@@ -114,23 +114,24 @@ async function previewDetails(url){
   url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
   const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),depop=isDepopUrl(url),ebay=isEbayUrl(url),q=new URLSearchParams();
 
-  if(ebay&&window.inspoCloudApi?.previewEbay){
-    try{
-      const direct=await window.inspoCloudApi.previewEbay(url);
-      if(direct&&(direct.title||direct.image||direct.price||direct.size||direct.condition)){
+  if(ebay){
+    if(window.inspoCloudApi?.previewEbay){
+      try{
+        const direct=await window.inspoCloudApi.previewEbay(url);
         return{
-          title:direct.title||'',
-          image:safeImageUrl(direct.image)||'',
+          title:direct?.title||'',
+          image:safeImageUrl(direct?.image)||'',
           source:'eBay',
-          price:direct.price||'',
-          size:direct.size||'',
+          price:direct?.priceExact===true?(direct.price||''):'',
+          size:direct?.size||'',
           reviews:'',
-          condition:direct.condition||'',
-          resolvedUrl:safeHttpUrl(direct.resolvedUrl)||'',
-          priceExact:direct.priceExact===true
+          condition:direct?.condition||'',
+          resolvedUrl:safeHttpUrl(direct?.resolvedUrl)||'',
+          priceExact:direct?.priceExact===true
         };
-      }
-    }catch(e){}
+      }catch(e){}
+    }
+    return{title:'',image:'',source:'eBay',price:'',size:'',reviews:'',condition:'',resolvedUrl:'',priceExact:false};
   }
 
   if(depop&&window.inspoCloudApi?.previewDepop){
@@ -235,7 +236,7 @@ async function enrichItem(x,force=false){
     if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
     if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
     const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
-    const amazon=isAmazonUrl(x.url),ebay=isEbayUrl(x.url);
+    const amazon=isAmazonUrl(x.url);
     if(amazon){
       for(const k of ['price','size','reviews'])if(d[k]&&x[k]!==d[k]){x[k]=d[k];changed=true}
     }else if(ebay){
