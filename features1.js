@@ -44,11 +44,19 @@ function isDepopUrl(url=''){
     return h==='depop.app.link'||h==='depop.com'||h.endsWith('.depop.com');
   }catch{return false}
 }
+function isEbayUrl(url=''){
+  try{
+    const h=new URL(url).hostname.toLowerCase();
+    return h==='ebay.com'||h.endsWith('.ebay.com')||h==='ebay.us'||h.endsWith('.ebay.us');
+  }catch{return false}
+}
 function genericListingTitle(value=''){
   const s=String(value||'').trim();
   return !s
     ||/^(Amazon|Vinted|Depop|Inspo) (outfit option|find)$/i.test(s)
     ||/^Look what I just found on Depop/i.test(s)
+    ||/^Error Page\s*\|\s*eBay$/i.test(s)
+    ||/^eBay listing$/i.test(s)
     ||/^Dress \| Vinted$/i.test(s);
 }
 function genericDepopImage(value=''){
@@ -104,7 +112,25 @@ function cleanAmazonSize(value=''){
 
 async function previewDetails(url){
   url=safeHttpUrl(url);if(!url)throw new Error('unsafe url');
-  const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),depop=isDepopUrl(url),q=new URLSearchParams();
+  const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),depop=isDepopUrl(url),ebay=isEbayUrl(url),q=new URLSearchParams();
+
+  if(ebay&&window.inspoCloudApi?.previewEbay){
+    try{
+      const direct=await window.inspoCloudApi.previewEbay(url);
+      if(direct&&(direct.title||direct.image||direct.price||direct.size||direct.condition)){
+        return{
+          title:direct.title||'',
+          image:safeImageUrl(direct.image)||'',
+          source:'eBay',
+          price:direct.price||'',
+          size:direct.size||'',
+          reviews:'',
+          condition:direct.condition||'',
+          resolvedUrl:safeHttpUrl(direct.resolvedUrl)||''
+        };
+      }
+    }catch(e){}
+  }
 
   if(depop&&window.inspoCloudApi?.previewDepop){
     try{
@@ -203,10 +229,10 @@ async function enrichItem(x,force=false){
   if(!force&&hasDetails&&fresh)return false;
   try{
     const d=await previewDetails(x.url);let changed=false;
-    const depop=isDepopUrl(x.url);
+    const depop=isDepopUrl(x.url),ebay=isEbayUrl(x.url);
     if(d.image&&(!x.image||(depop&&(genericListingTitle(x.title)||genericDepopImage(x.image))))){x.image=d.image;changed=true}
     if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
-    if(depop&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
+    if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
     const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
     const amazon=isAmazonUrl(x.url);
     if(amazon){
