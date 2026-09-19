@@ -12,7 +12,10 @@ window.inspoCloudApi={
   getUser:()=>cloudUser,
   getProfile:()=>cloudProfile,
   sync:()=>syncAll(false),
-  refreshFavoriteFaces:()=>loadFavoriteFacesForBoards(),
+  refreshFavoriteFaces:async()=>{
+    await loadFavoriteFacesForBoards();
+    if(currentId)renderBoard();
+  },
   previewVinted:async url=>{
     if(!cloudUser)throw new Error('Sign in required');
     const {data,error}=await sb.functions.invoke('vinted-preview',{body:{url}});
@@ -267,7 +270,7 @@ function prepareUserCache(){
 function dbBoardToLocal(b,items,saved,members){
   const its=(items||[]).filter(i=>i.board_id===b.id).sort((a,z)=>(a.position||0)-(z.position||0)).map(i=>({id:i.id,url:i.source_url||'',source:i.source_name||'',title:i.title||'',image:i.image_url||'',tag:i.tag||'',price:i.price||'',size:i.size||'',reviews:i.reviews||'',condition:i.condition||'',_createdBy:i.created_by}));
   const role=b.owner_id===cloudUser.id?'owner':((members||[]).find(m=>m.board_id===b.id&&m.user_id===cloudUser.id)?.role||'viewer');
-  return{id:b.id,type:b.board_type,icon:b.icon||'✦',title:b.title,subtitle:b.subtitle||'',created:Date.parse(b.created_at),updated:Date.parse(b.updated_at),items:its,saved:(saved||[]).filter(s=>s.board_id===b.id).map(s=>s.item_id),_cloud:true,_ownerId:b.owner_id,_role:role,_shareToken:b.share_token,_collaborateToken:b.collaborate_token,_visibility:b.visibility};
+  return{id:b.id,type:b.board_type,icon:b.icon||'✦',title:b.title,subtitle:b.subtitle||'',created:Date.parse(b.created_at),updated:Date.parse(b.updated_at),items:its,saved:(saved||[]).filter(s=>s.board_id===b.id&&s.user_id===cloudUser.id).map(s=>s.item_id),_cloud:true,_ownerId:b.owner_id,_role:role,_shareToken:b.share_token,_collaborateToken:b.collaborate_token,_visibility:b.visibility};
 }
 async function loadCloud(){
   if(!cloudUser)return;reloading=true;
