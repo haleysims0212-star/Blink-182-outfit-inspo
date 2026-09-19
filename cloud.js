@@ -11,7 +11,29 @@ const legacyPersist=persist;
 window.inspoCloudApi={
   getUser:()=>cloudUser,
   getProfile:()=>cloudProfile,
-  sync:()=>syncAll(false),
+  sync:()=>syncNow(),
+  saveItemToBoard:async(p,x)=>{
+    if(!cloudUser)throw new Error('Sign in required');
+    if(!p||!x)throw new Error('Missing board or find');
+    if(!uuidRe.test(p.id))p.id=crypto.randomUUID();
+    if(!uuidRe.test(x.id))x.id=crypto.randomUUID();
+    if(!p._cloud){
+      const {error:boardError}=await sb.from('boards').insert(toBoardRow(p));
+      if(boardError)throw boardError;
+      p._cloud=true;p._ownerId=cloudUser.id;p._role='owner';ownedIds.add(p.id);
+    }
+    const {error:itemError}=await sb.from('items').upsert({
+      id:x.id,board_id:p.id,created_by:x._createdBy||cloudUser.id,
+      source_url:safeHttpUrl(x.url)||null,source_name:x.source||null,
+      title:x.title||'Untitled find',image_url:safeImageUrl(x.image)||null,
+      tag:x.tag||null,price:x.price||null,size:x.size||null,
+      reviews:x.reviews||null,condition:x.condition||null,
+      position:0
+    });
+    if(itemError)throw itemError;
+    saveLocal();
+    return true;
+  },
   createBoard:async p=>{
     if(!cloudUser)throw new Error('Sign in required');
     if(!uuidRe.test(p.id))p.id=crypto.randomUUID();
@@ -227,6 +249,13 @@ function normalizeIds(){
 function toBoardRow(p){
   return{id:p.id,owner_id:p._ownerId||cloudUser.id,title:p.title||'Untitled board',subtitle:p.subtitle||null,icon:p.icon||null,board_type:p.type||'inspo'};
 }
+async function syncNow(){
+  for(let i=0;i<60;i++){
+    if(!syncing&&!reloading)return syncAll(true);
+    await new Promise(r=>setTimeout(r,100));
+  }
+  throw new Error('Cloud sync is busy. Please try again.');
+}
 async function syncAll(force=false){
   if(!cloudUser||syncing||(!force&&reloading))return;syncing=true;
   try{
@@ -259,7 +288,7 @@ async function syncAll(force=false){
     }
     for(const id of ownedIds){if(!presentOwned.has(id)){await sb.from('boards').delete().eq('id',id)}}
     ownedIds=presentOwned; saveLocal();
-  }catch(e){console.warn('Cloud sync',e)}finally{syncing=false}
+  }catch(e){console.warn('Cloud sync',e);throw e}finally{syncing=false}
 }
 persist=function(){saveLocal();if(cloudUser&&!reloading){clearTimeout(syncTimer);syncTimer=setTimeout(()=>syncAll(false),450)}};
 
