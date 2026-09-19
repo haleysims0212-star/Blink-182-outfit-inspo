@@ -143,15 +143,28 @@ async function openPending(){
       localStorage.removeItem(PENDING_KEY);closeShared(false);openBoard(b.id);toast('Already on this board');return;
     }
     b.items=b.items||[];
-    b.items.unshift({
+    var item={
       id:crypto.randomUUID(),url:info.url,title:info.title,image:info.image,tag:'',
       source:info.source,price:info.price,size:info.size,reviews:info.reviews,
       condition:info.condition,detailsChecked:Date.now(),_createdBy:user.id
-    });
+    };
+    b.items.unshift(item);
     b.updated=now();
-    localStorage.removeItem(PENDING_KEY);
     persist();
-    if(window.inspoCloudApi&&window.inspoCloudApi.sync)await window.inspoCloudApi.sync();
+    try{
+      if(window.inspoCloudApi&&window.inspoCloudApi.saveItemToBoard){
+        await window.inspoCloudApi.saveItemToBoard(b,item);
+      }else if(window.inspoCloudApi&&window.inspoCloudApi.sync){
+        await window.inspoCloudApi.sync();
+      }
+    }catch(e){
+      b.items=b.items.filter(function(x){return x.id!==item.id});
+      persist();
+      btn.disabled=false;btn.textContent='Save find';
+      toast('Could not save this find. Try again.');
+      return;
+    }
+    localStorage.removeItem(PENDING_KEY);
     closeShared(false);openBoard(b.id);toast('Saved to '+b.title);
   };
   return true;
