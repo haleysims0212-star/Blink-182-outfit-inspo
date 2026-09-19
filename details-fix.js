@@ -15,10 +15,11 @@ async function hydrateBoardDetails(boardId){
         x._priceLoading=!x.price;
         try{
           const d=await previewDetails(x.url);
-          const depop=isDepopUrl(x.url);
+          const depop=isDepopUrl(x.url),ebay=isEbayUrl(x.url);
           if(d.image&&(!x.image||(depop&&(genericListingTitle(x.title)||genericDepopImage(x.image))))){x.image=d.image;changed=true}
           if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
-          if(depop&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
+          if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
+          if(ebay&&genericListingTitle(x.title)&&!d.title){x.title='eBay listing';changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
           for(const k of ['price','size','reviews','condition']){
             if(d[k]&&!x[k]){x[k]=d[k];changed=true}
@@ -43,10 +44,11 @@ async function hydrateMissing(){
       if(x.url&&!x.image){
         try{
           const d=await preview(x.url);
-          const depop=isDepopUrl(x.url);
+          const depop=isDepopUrl(x.url),ebay=isEbayUrl(x.url);
           if(d.image&&(!x.image||(depop&&(genericListingTitle(x.title)||genericDepopImage(x.image))))){x.image=d.image;changed=true}
           if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
-          if(depop&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
+          if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
+          if(ebay&&genericListingTitle(x.title)&&!d.title){x.title='eBay listing';changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
         }catch(e){}
       }
