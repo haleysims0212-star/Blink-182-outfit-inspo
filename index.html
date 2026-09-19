@@ -50,7 +50,7 @@
 <div class="field"><label>Board type</label><div class="typepick"><button id="typeInspo" class="type-btn on" data-type="inspo">✦ Inspo board<small>Ideas, looks, moodboards, shopping.</small></button><button id="typeProject" class="type-btn" data-type="project">✓ Project board<small>Plans, options and things you’re deciding on.</small></button></div></div>
 <div class="two"><div class="field"><label>Icon</label><input id="boardIcon" maxlength="4" placeholder="✦"></div><div class="field"><label>Board name</label><input id="boardName" maxlength="70" placeholder="Living room ideas"></div></div>
 <div class="field"><label>Little note <span style="color:var(--muted);font-weight:700">(optional)</span></label><textarea id="boardNote" maxlength="180" placeholder="What are you collecting ideas for?"></textarea></div>
-<button id="saveBoard" class="primary">Create board</button><button id="deleteBoard" class="danger" hidden>Delete board</button>
+<button id="saveBoard" class="primary">Create board</button><div id="boardStatus" class="status"></div><button id="deleteBoard" class="danger" hidden>Delete board</button>
 </div></div>
 
 <div id="findModal" class="overlay"><div class="sheet"><div class="sheet-head"><h2 id="findModalTitle">Add a find</h2><button class="close" data-close="findModal">×</button></div>
@@ -70,12 +70,12 @@
 <script src="security.js?v=1"></script>
 <script src="core2.js?v=13"></script>
 <script src="features1.js?v=19"></script>
-<script src="features2.js?v=6"></script>
+<script src="features2.js?v=7"></script>
 <script src="features3.js?v=7"></script>
 <script src="details-fix.js?v=8"></script>
 <script src="features4.js?v=5"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="cloud.js?v=11"></script>
+<script src="cloud.js?v=12"></script>
 <script src="share-target.js?v=5"></script>
 </body>
 </html>
