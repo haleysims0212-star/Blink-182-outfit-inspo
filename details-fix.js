@@ -7,7 +7,7 @@ async function hydrateBoardDetails(boardId){
   hydratingBoards.add(boardId);
   let changed=false;
   try{
-    const todo=(b.items||[]).filter(x=>x.url&&(!x.price||!x.image||!x.size||!x.reviews||!x.condition)&&!detailAttempted.has(x.id));
+    const todo=(b.items||[]).filter(x=>x.url&&(!x.price||!x.image||!x.size||!x.reviews||!x.condition||isEbayUrl(x.url))&&!detailAttempted.has(x.id));
     for(let i=0;i<todo.length;i+=3){
       const batch=todo.slice(i,i+3);
       await Promise.all(batch.map(async x=>{
@@ -21,8 +21,15 @@ async function hydrateBoardDetails(boardId){
           if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
           if(ebay&&genericListingTitle(x.title)&&!d.title){x.title='eBay listing';changed=true}
           const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
-          for(const k of ['price','size','reviews','condition']){
-            if(d[k]&&!x[k]){x[k]=d[k];changed=true}
+          const ebay=isEbayUrl(x.url);
+          if(ebay){
+            if(d.priceExact===true&&x.price!==d.price){x.price=d.price||'';changed=true}
+            else if(d.priceExact===false&&x.price){x.price='';changed=true}
+            for(const k of ['size','condition'])if(d[k]&&!x[k]){x[k]=d[k];changed=true}
+          }else{
+            for(const k of ['price','size','reviews','condition']){
+              if(d[k]&&!x[k]){x[k]=d[k];changed=true}
+            }
           }
         }catch(e){}
         x._priceLoading=false;
