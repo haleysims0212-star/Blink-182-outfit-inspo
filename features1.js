@@ -126,7 +126,8 @@ async function previewDetails(url){
           size:direct.size||'',
           reviews:'',
           condition:direct.condition||'',
-          resolvedUrl:safeHttpUrl(direct.resolvedUrl)||''
+          resolvedUrl:safeHttpUrl(direct.resolvedUrl)||'',
+          priceExact:direct.priceExact===true
         };
       }
     }catch(e){}
@@ -234,9 +235,12 @@ async function enrichItem(x,force=false){
     if(d.title&&genericListingTitle(x.title)){x.title=d.title;changed=true}
     if((depop||ebay)&&d.resolvedUrl&&safeHttpUrl(d.resolvedUrl)&&x.url!==d.resolvedUrl){x.url=d.resolvedUrl;changed=true}
     const s=sourceName(x.url,d.source);if(s&&s!==x.source){x.source=s;changed=true}
-    const amazon=isAmazonUrl(x.url);
+    const amazon=isAmazonUrl(x.url),ebay=isEbayUrl(x.url);
     if(amazon){
       for(const k of ['price','size','reviews'])if(d[k]&&x[k]!==d[k]){x[k]=d[k];changed=true}
+    }else if(ebay){
+      if(d.priceExact===true&&x.price!==d.price){x.price=d.price||'';changed=true}
+      for(const k of ['size','condition'])if(d[k]&&(!x[k]||force)&&x[k]!==d[k]){x[k]=d[k];changed=true}
     }else{
       for(const k of ['price','size','reviews','condition'])if(d[k]&&(!x[k]||force)&&x[k]!==d[k]){x[k]=d[k];changed=true}
     }
