@@ -285,8 +285,8 @@ async function loadCloud(){
     }
     projects=(boards||[]).map(b=>dbBoardToLocal(b,items,saved,members));
     ownedIds=new Set(projects.filter(p=>p._role==='owner').map(p=>p.id));
-    await loadFavoriteFacesForBoards();
     saveLocal();currentId=null;renderHome();
+    loadFavoriteFacesForBoards().then(()=>{if(currentId)renderBoard();else renderHome()}).catch(e=>console.warn('Favorite faces',e));
   }catch(e){console.warn(e);toast('Could not load cloud boards')}finally{reloading=false}
 }
 const originalRenderHome=renderHome;
@@ -356,8 +356,13 @@ async function onSession(session){
   showGate('Loading your private boards…');
   prepareUserCache();
   $('#cloudUserBar').hidden=false;
-  await loadMyProfile();
-  subscribeRealtime();await loadCloud();await joinPending();hideGate();window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:true}}))
+  $('#cloudUserText').textContent=cloudUser.email||'Signed in';
+  subscribeRealtime();
+  await loadCloud();
+  hideGate();
+  loadMyProfile().catch(e=>console.warn('Profile load',e));
+  joinPending().catch(e=>console.warn('Pending join',e));
+  window.dispatchEvent(new CustomEvent('inspo-session',{detail:{signedIn:true}}))
 }
 async function start(){
   injectUI();await loadAuthCapabilities();showGate('Loading your private boards…');
