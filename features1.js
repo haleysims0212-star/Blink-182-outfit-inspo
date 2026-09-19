@@ -115,23 +115,49 @@ async function previewDetails(url){
   const amazon=isAmazonUrl(url),vinted=isVintedUrl(url),depop=isDepopUrl(url),ebay=isEbayUrl(url),q=new URLSearchParams();
 
   if(ebay){
+    let direct={};
     if(window.inspoCloudApi?.previewEbay){
+      try{direct=await window.inspoCloudApi.previewEbay(url)||{}}catch(e){}
+    }
+
+    let title=direct.title||'';
+    let image=safeImageUrl(direct.image)||'';
+    const resolvedUrl=safeHttpUrl(direct.resolvedUrl)||'';
+
+    if(!title||!image){
       try{
-        const direct=await window.inspoCloudApi.previewEbay(url);
-        return{
-          title:direct?.title||'',
-          image:safeImageUrl(direct?.image)||'',
-          source:'eBay',
-          price:direct?.priceExact===true?(direct.price||''):'',
-          size:direct?.size||'',
-          reviews:'',
-          condition:direct?.condition||'',
-          resolvedUrl:safeHttpUrl(direct?.resolvedUrl)||'',
-          priceExact:direct?.priceExact===true
-        };
+        const id=String(url).match(/\/itm\/(?:[^/]+\/)?(\d{9,15})/i)?.[1]||'';
+        const previewUrl=id?'https://www.ebay.com/itm/'+id:(resolvedUrl||url);
+        const mq=new URLSearchParams();
+        mq.set('url',previewUrl);
+        mq.set('prerender','true');
+        const mr=await fetch('https://api.microlink.io/?'+mq.toString());
+        if(mr.ok){
+          const mj=await mr.json(),md=mj.data||{};
+          const mt=String(md.title||'').trim();
+          const mi=safeImageUrl(md.image?.url||'');
+          if(!title&&mt&&!genericListingTitle(mt))title=mt;
+          if(!image&&mi){
+            try{
+              const h=new URL(mi).hostname.toLowerCase();
+              if(h==='i.ebayimg.com'||h.endsWith('.ebayimg.com'))image=mi;
+            }catch(e){}
+          }
+        }
       }catch(e){}
     }
-    return{title:'',image:'',source:'eBay',price:'',size:'',reviews:'',condition:'',resolvedUrl:'',priceExact:false};
+
+    return{
+      title,
+      image,
+      source:'eBay',
+      price:direct?.priceExact===true?(direct.price||''):'',
+      size:direct?.size||'',
+      reviews:'',
+      condition:direct?.condition||'',
+      resolvedUrl,
+      priceExact:direct?.priceExact===true
+    };
   }
 
   if(depop&&window.inspoCloudApi?.previewDepop){
